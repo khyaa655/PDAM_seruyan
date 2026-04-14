@@ -6,12 +6,18 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import StaffDashboard from './pages/staff/Tasks';
 import MeterReading from './pages/staff/MeterReading';
+import DisconnectionFlow from './pages/staff/DisconnectionFlow';
 import UserDashboard from './pages/user/Dashboard';
+
+import { TaskProvider } from './taskContext';
+import { LanguageProvider } from './languageContext';
 
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <LanguageProvider>
+      <TaskProvider>
+        <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
           
@@ -29,6 +35,15 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['staff']}>
                 <MeterReading />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/staff/disconnection/:taskId" 
+            element={
+              <ProtectedRoute allowedRoles={['staff']}>
+                <DisconnectionFlow />
               </ProtectedRoute>
             } 
           />
@@ -54,6 +69,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
+      </TaskProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 }

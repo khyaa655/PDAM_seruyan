@@ -4,7 +4,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone: string; // Added for WA login
+  password?: string;
   role: UserRole;
+  status: 'active' | 'pending' | 'blocked';
+  verificationCode?: string; // For Staff validation
   avatar?: string;
 }
 
@@ -14,9 +18,19 @@ export interface Task {
   location: string;
   district: string;
   priority: 'high' | 'normal';
-  status: 'pending' | 'in-progress' | 'completed';
-  type: 'repair' | 'reading';
+  status: 'pending' | 'assigned' | 'in-progress' | 'completed';
+  type: 'repair' | 'reading' | 'disconnection';
+  assignedTo?: string; // Staff ID
+  customerId?: string;
+  customerName?: string;
+  reason?: string; // e.g. "Overdue Bills" or "Customer Request"
   deadline?: string;
+  completedAt?: string;
+  report?: {
+    image?: string;
+    notes?: string;
+    signature?: string;
+  };
 }
 
 export interface Bill {

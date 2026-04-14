@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Wrench, MapPin, User, Clock, CheckCircle2, AlertCircle, MoreHorizontal } from 'lucide-react';
+import { useLanguage } from '../../languageContext';
 
 export default function Repairs() {
+  const { t } = useLanguage();
   const repairs = [
     { id: 'REP-102', title: 'Main Pipe Leakage', location: 'Jl. Gajah Mada', staff: 'Siti Rahayu', status: 'in-progress', priority: 'high' },
     { id: 'REP-103', title: 'Meter Replacement', location: 'Kamboja Residence', staff: 'Dewi Nurani', status: 'pending', priority: 'normal' },
@@ -14,21 +16,21 @@ export default function Repairs() {
     <div className="space-y-8">
       <header className="flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-headline font-bold">Repair Management</h2>
-          <p className="text-sm text-slate-500">Track and assign maintenance tasks across the network.</p>
+          <h2 className="text-2xl font-headline font-bold">{t('admin.repairs.title')}</h2>
+          <p className="text-sm text-slate-500">{t('admin.repairs.subtitle')}</p>
         </div>
         <button className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20">
-          New Repair Ticket
+          {t('admin.repairs.new')}
         </button>
       </header>
 
       {/* Status Overview */}
       <section className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Active', count: 14, color: 'text-primary', bg: 'bg-primary/5' },
-          { label: 'Pending', count: 8, color: 'text-amber-500', bg: 'bg-amber-50' },
-          { label: 'Unassigned', count: 3, color: 'text-error', bg: 'bg-error/5' },
-          { label: 'Completed', count: 42, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+          { label: t('admin.tasks.status.active'), count: 14, color: 'text-primary', bg: 'bg-primary/5' },
+          { label: t('admin.tasks.status.pending'), count: 8, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: t('admin.tasks.status.unassigned'), count: 3, color: 'text-error', bg: 'bg-error/5' },
+          { label: t('admin.tasks.status.completed'), count: 42, color: 'text-emerald-500', bg: 'bg-emerald-50' },
         ].map((s, i) => (
           <div key={i} className={`${s.bg} p-6 rounded-[2rem] border border-slate-100`}>
             <p className={`text-[10px] font-bold uppercase tracking-widest ${s.color}`}>{s.label}</p>
@@ -59,7 +61,7 @@ export default function Repairs() {
                   <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${
                     rep.priority === 'high' ? 'bg-error/10 text-error' : 'bg-slate-100 text-slate-500'
                   }`}>
-                    {rep.priority}
+                    {rep.priority === 'high' ? t('admin.tasks.priority.high') : t('admin.tasks.priority.normal')}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider">

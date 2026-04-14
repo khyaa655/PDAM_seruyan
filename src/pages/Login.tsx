@@ -1,20 +1,44 @@
 import React, { useState } from 'react';
 import { useAuth } from '../authContext';
 import { Navigate } from 'react-router-dom';
-import { Waves, ShieldCheck, User as UserIcon, Briefcase, Mail, Lock, ArrowLeft, User as UserCircle } from 'lucide-react';
+import { 
+  Waves, 
+  ShieldCheck, 
+  User as UserIcon, 
+  Briefcase, 
+  Mail, 
+  Lock, 
+  ArrowLeft, 
+  User as UserCircle, 
+  CircleAlert, 
+  CheckCircle2, 
+  Loader2,
+  Phone,
+  MessageSquare,
+  KeyRound
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useLanguage } from '../languageContext';
+import LanguageToggle from '../components/LanguageToggle';
 
-type Step = 'role' | 'login' | 'register' | 'forgot-password';
+type Step = 'role' | 'login' | 'register' | 'forgot-password' | 'verify-code' | 'pending-info';
 type Role = 'admin' | 'staff' | 'user';
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, register, verifyCode } = useAuth();
+  const { t } = useLanguage();
   const [selectedRole, setSelectedRole] = useState<Role>('user');
   const [step, setStep] = useState<Step>('role');
   
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [vCode, setVCode] = useState('');
+  
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (user) {
     if (user.role === 'admin') return <Navigate to="/admin" replace />;
@@ -22,15 +46,41 @@ export default function Login() {
     return <Navigate to="/user" replace />;
   }
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (step === 'forgot-password') {
-      alert(`Password reset link sent to ${email}`);
-      setStep('login');
-      return;
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      if (step === 'login') {
+        const result = await login(emailOrPhone, password);
+        if (!result.success) {
+          if (result.message === 'PENDING_VERIFICATION') {
+            setStep('verify-code');
+          } else {
+            setError(result.message || 'Login failed');
+          }
+        }
+      } else if (step === 'register') {
+        const result = await register(name, email, phone, password, selectedRole);
+        if (result.status === 'pending') {
+          setStep('verify-code');
+        }
+      } else if (step === 'verify-code') {
+        const result = await verifyCode(emailOrPhone || email || phone, vCode);
+        if (!result.success) {
+          setError(result.message || 'Verification failed');
+        }
+      } else if (step === 'forgot-password') {
+        await new Promise(r => setTimeout(r, 1000));
+        alert(`Reset link sent to ${emailOrPhone}`);
+        setStep('login');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setIsSubmitting(false);
     }
-    // Simulate register/login
-    login(selectedRole);
   };
 
   const GoogleIcon = () => (
@@ -46,9 +96,13 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Decorative background elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-secondary/20 rounded-full blur-[100px] pointer-events-none" />
+      
+      {/* Language Toggle */}
+      <div className="absolute top-8 right-8 z-50">
+        <LanguageToggle />
+      </div>
 
       <div className="w-full max-w-md">
         <AnimatePresence mode="wait">
@@ -64,52 +118,94 @@ export default function Login() {
                 <div className="w-16 h-16 bg-gradient-to-tr from-primary to-primary-container rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-primary/20">
                   <Waves size={32} />
                 </div>
-                <h1 className="text-2xl font-headline font-bold text-slate-800">Seruyan Utility</h1>
-                <p className="text-slate-500 text-sm mt-1">Select your portal access level</p>
+                <h1 className="text-2xl font-headline font-bold text-slate-800">{t('login.gate.title')}</h1>
+                <p className="text-slate-500 text-sm mt-1">{t('login.gate.subtitle')}</p>
               </div>
 
               <div className="space-y-4 mb-8">
                 <div className="grid grid-cols-1 gap-3">
-                  <button
-                    onClick={() => { setSelectedRole('admin'); setStep('login'); }}
-                    className="group relative overflow-hidden flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white"
-                  >
+                  <button onClick={() => { setSelectedRole('admin'); setStep('login'); }} className="group flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white">
                     <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                       <ShieldCheck size={24} />
                     </div>
                     <div className="text-left">
-                      <span className="block font-bold text-slate-800">Admin Portal</span>
-                      <span className="text-xs text-slate-500">System management & oversight</span>
+                      <span className="block font-bold text-slate-800">{t('login.role.admin.title')}</span>
+                      <span className="text-xs text-slate-500">{t('login.role.admin.desc')}</span>
                     </div>
                   </button>
-                  
-                  <button
-                    onClick={() => { setSelectedRole('staff'); setStep('login'); }}
-                    className="group relative overflow-hidden flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white"
-                  >
+                  <button onClick={() => { setSelectedRole('staff'); setStep('login'); }} className="group flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white">
                     <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                       <Briefcase size={24} />
                     </div>
                     <div className="text-left">
-                      <span className="block font-bold text-slate-800">Staff Portal</span>
-                      <span className="text-xs text-slate-500">Operations & meter reading</span>
+                      <span className="block font-bold text-slate-800">{t('login.role.staff.title')}</span>
+                      <span className="text-xs text-slate-500">{t('login.role.staff.desc')}</span>
                     </div>
                   </button>
-                  
-                  <button
-                    onClick={() => { setSelectedRole('user'); setStep('login'); }}
-                    className="group relative overflow-hidden flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white"
-                  >
+                  <button onClick={() => { setSelectedRole('user'); setStep('login'); }} className="group flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white">
                     <div className="w-12 h-12 rounded-xl bg-green-100 text-green-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                       <UserIcon size={24} />
                     </div>
                     <div className="text-left">
-                      <span className="block font-bold text-slate-800">Customer Portal</span>
-                      <span className="text-xs text-slate-500">View usage & pay bills</span>
+                      <span className="block font-bold text-slate-800">{t('login.role.user.title')}</span>
+                      <span className="text-xs text-slate-500">{t('login.role.user.desc')}</span>
                     </div>
                   </button>
                 </div>
               </div>
+            </motion.div>
+          ) : step === 'verify-code' ? (
+            <motion.div 
+               key="verify"
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 border border-white/50"
+            >
+              <button onClick={() => setStep('role')} className="mb-6 flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+                <ArrowLeft size={16} className="mr-2" />
+                {t('common.back')}
+              </button>
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <KeyRound size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800">{t('login.verify.title')}</h2>
+                <p className="text-slate-500 text-sm mt-2">
+                  {t('login.verify.subtitle')}
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-600 text-sm">
+                  <CircleAlert size={18} className="shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600 ml-1">Verification Code</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={vCode}
+                    onChange={(e) => setVCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    className="block w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl font-bold tracking-[0.5em] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || vCode.length !== 6}
+                  className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('login.verify.button')}
+                </button>
+              </form>
+              <p className="mt-8 text-center text-xs text-slate-400">
+                {t('login.verify.footer')}
+              </p>
             </motion.div>
           ) : (
             <motion.div 
@@ -119,12 +215,9 @@ export default function Login() {
               exit={{ opacity: 0, x: -20 }}
               className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 border border-white/50"
             >
-              <button 
-                onClick={() => setStep('role')}
-                className="mb-6 flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
-              >
+              <button onClick={() => { setStep('role'); setError(''); }} className="mb-6 flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors" disabled={isSubmitting}>
                 <ArrowLeft size={16} className="mr-2" />
-                Change Role
+                {t('login.button.back_role')}
               </button>
 
               <div className="mb-6">
@@ -132,14 +225,21 @@ export default function Login() {
                   {getRoleLabel(selectedRole)} Access
                 </span>
                 <h2 className="text-2xl font-bold text-slate-800">
-                  {step === 'login' ? 'Welcome back' : step === 'register' ? 'Create an account' : 'Reset password'}
+                  {step === 'login' ? t('login.title') : step === 'register' ? t('login.footer.register') : 'Recover Access'}
                 </h2>
                 <p className="text-slate-500 text-sm mt-1">
-                  {step === 'login' ? 'Please enter your details to sign in.' : 
-                   step === 'register' ? 'Sign up to get started securely.' : 
-                   'Enter your email to receive a reset link.'}
+                  {step === 'login' ? t('login.subtitle') : 
+                   step === 'register' ? 'Register with your contact details below.' : 
+                   'Provide your contact info to receive reset instructions.'}
                 </p>
               </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-600 text-sm">
+                  <CircleAlert size={18} className="shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 {step === 'register' && (
@@ -154,33 +254,57 @@ export default function Login() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. John Doe"
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
                 )}
                 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600 ml-1">Email Address</label>
+                    <label className="text-xs font-semibold text-slate-600 ml-1">
+                      {step === 'login' ? t('login.label.identity') : t('login.label.email')}
+                    </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-slate-400" />
+                      {emailOrPhone.includes('@') || step !== 'login' ? <Mail className="h-5 w-5 text-slate-400" /> : <MessageSquare className="h-5 w-5 text-slate-400" />}
                     </div>
                     <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                      type="text"
+                      value={step === 'login' ? emailOrPhone : email}
+                      onChange={(e) => step === 'login' ? setEmailOrPhone(e.target.value) : setEmail(e.target.value)}
+                      placeholder={step === 'login' ? 'you@link.com or 08...' : 'you@example.com'}
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
 
+                {step === 'register' && (
+                   <div className="space-y-1">
+                     <label className="text-xs font-semibold text-slate-600 ml-1">WhatsApp Number</label>
+                     <div className="relative">
+                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                         <Phone className="h-5 w-5 text-slate-400" />
+                       </div>
+                       <input
+                         type="tel"
+                         value={phone}
+                         onChange={(e) => setPhone(e.target.value)}
+                         placeholder="0812..."
+                         className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                         required
+                         disabled={isSubmitting}
+                       />
+                     </div>
+                   </div>
+                )}
+
                 {step !== 'forgot-password' && (
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Password</label>
+                    <label className="text-xs font-semibold text-slate-600 ml-1">{t('login.label.password')}</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Lock className="h-5 w-5 text-slate-400" />
@@ -190,8 +314,9 @@ export default function Login() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -199,21 +324,18 @@ export default function Login() {
 
                 {step === 'login' && (
                   <div className="flex items-center justify-end">
-                    <button 
-                      type="button" 
-                      onClick={() => setStep('forgot-password')}
-                      className="text-sm font-medium text-primary hover:text-primary-container transition-colors"
-                    >
-                      Forgot password?
+                    <button type="button" onClick={() => setStep('forgot-password')} className="text-sm font-medium text-primary hover:underline" disabled={isSubmitting}>
+                      {t('login.label.forgot')}
                     </button>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb]"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center"
                 >
-                  {step === 'login' ? 'Sign In' : step === 'register' ? 'Sign Up' : 'Send Reset Link'}
+                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (step === 'login' ? t('login.button.signin') : step === 'register' ? 'Create Hub' : 'Send Instructions')}
                 </button>
               </form>
 
@@ -221,43 +343,27 @@ export default function Login() {
                 <>
                   <div className="mt-6 flex items-center justify-center space-x-4">
                     <div className="h-px bg-slate-200 flex-1"></div>
-                    <span className="text-xs font-medium text-slate-400">OR CONTINUE WITH</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">OR SOCIAL ACCESS</span>
                     <div className="h-px bg-slate-200 flex-1"></div>
                   </div>
-
-                  <button
-                    onClick={() => login(selectedRole)}
-                    type="button"
-                    className="mt-6 w-full py-3.5 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center shadow-sm"
+                  <button 
+                    onClick={() => login(selectedRole === 'admin' ? 'admin@seruyan.id' : selectedRole === 'staff' ? 'staff@seruyan.id' : 'user@seruyan.id', 'password')} 
+                    type="button" 
+                    className="mt-6 w-full py-3.5 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all"
                   >
                     <GoogleIcon />
-                    Google
+                    {t('login.button.google')}
                   </button>
                 </>
               )}
 
               <div className="mt-6 text-center text-sm text-slate-500">
                 {step === 'login' ? (
-                  <>
-                    Don't have an account?{' '}
-                    <button onClick={() => setStep('register')} className="font-bold text-primary hover:underline">
-                      Sign up
-                    </button>
-                  </>
+                  <>{t('login.footer.noaccount')} <button onClick={() => setStep('register')} className="font-bold text-primary">{t('login.footer.register')}</button></>
                 ) : step === 'register' ? (
-                  <>
-                    Already have an account?{' '}
-                    <button onClick={() => setStep('login')} className="font-bold text-primary hover:underline">
-                      Sign in
-                    </button>
-                  </>
+                  <>{t('login.footer.haveaccount')} <button onClick={() => setStep('login')} className="font-bold text-primary">{t('common.logout')}</button></>
                 ) : (
-                  <>
-                    Remember your password?{' '}
-                    <button onClick={() => setStep('login')} className="font-bold text-primary hover:underline">
-                      Back to login
-                    </button>
-                  </>
+                  <button onClick={() => setStep('login')} className="font-bold text-primary">{t('login.footer.back')}</button>
                 )}
               </div>
             </motion.div>

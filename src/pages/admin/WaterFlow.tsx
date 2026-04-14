@@ -1,20 +1,22 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Waves, Activity, AlertTriangle, Droplets, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { useLanguage } from '../../languageContext';
 
 export default function WaterFlow() {
+  const { t } = useLanguage();
   const zones = [
-    { name: 'North Basin', flow: '1,240 L/s', pressure: '4.2 bar', status: 'optimal', trend: 'up' },
-    { name: 'Central District', flow: '2,850 L/s', pressure: '3.8 bar', status: 'optimal', trend: 'down' },
-    { name: 'West Sector', flow: '980 L/s', pressure: '2.1 bar', status: 'warning', trend: 'up' },
-    { name: 'South Industrial', flow: '4,120 L/s', pressure: '5.5 bar', status: 'optimal', trend: 'up' },
+    { name: t('admin.waterflow.zone.north'), flow: '1,240 L/s', pressure: '4.2 bar', status: 'optimal', trend: 'up' },
+    { name: t('admin.waterflow.zone.central'), flow: '2,850 L/s', pressure: '3.8 bar', status: 'optimal', trend: 'down' },
+    { name: t('admin.waterflow.zone.west'), flow: '980 L/s', pressure: '2.1 bar', status: 'warning', trend: 'up' },
+    { name: t('admin.waterflow.zone.south'), flow: '4,120 L/s', pressure: '5.5 bar', status: 'optimal', trend: 'up' },
   ];
 
   return (
     <div className="space-y-8">
       <header>
-        <h2 className="text-2xl font-headline font-bold">Water Flow Monitoring</h2>
-        <p className="text-sm text-slate-500">Real-time distribution and pressure analysis across all sectors.</p>
+        <h2 className="text-2xl font-headline font-bold">{t('admin.waterflow.title')}</h2>
+        <p className="text-sm text-slate-500">{t('admin.waterflow.subtitle')}</p>
       </header>
 
       {/* Real-time Graph Placeholder */}
@@ -25,12 +27,12 @@ export default function WaterFlow() {
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <p className="text-primary font-bold text-[10px] uppercase tracking-widest">Total System Output</p>
+              <p className="text-primary font-bold text-[10px] uppercase tracking-widest">{t('admin.waterflow.total')}</p>
               <h3 className="text-4xl font-headline font-extrabold">9,190 L/s</h3>
             </div>
             <div className="flex items-center gap-2 bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full text-xs font-bold">
               <Activity size={16} />
-              System Stable
+              {t('admin.waterflow.stable')}
             </div>
           </div>
           <div className="h-40 flex items-end gap-1">
@@ -62,7 +64,7 @@ export default function WaterFlow() {
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                   zone.status === 'optimal' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
                 }`}>
-                  {zone.status}
+                  {zone.status === 'optimal' ? t('admin.waterflow.stable') : t('common.urgent')}
                 </span>
               </div>
               <div className={`p-2 rounded-xl ${zone.status === 'optimal' ? 'bg-slate-50 text-primary' : 'bg-amber-50 text-amber-500'}`}>
@@ -72,14 +74,14 @@ export default function WaterFlow() {
 
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
               <div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Flow Rate</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">{t('admin.waterflow.flow')}</p>
                 <div className="flex items-center gap-1">
                   <p className="text-sm font-bold">{zone.flow}</p>
                   {zone.trend === 'up' ? <ArrowUpRight size={14} className="text-emerald-500" /> : <ArrowDownRight size={14} className="text-amber-500" />}
                 </div>
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Pressure</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">{t('admin.waterflow.pressure')}</p>
                 <p className="text-sm font-bold">{zone.pressure}</p>
               </div>
             </div>
