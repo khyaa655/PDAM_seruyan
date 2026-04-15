@@ -7,7 +7,6 @@ import AdminDashboard from './pages/admin/Dashboard';
 import StaffDashboard from './pages/staff/Tasks';
 import MeterReading from './pages/staff/MeterReading';
 import DisconnectionFlow from './pages/staff/DisconnectionFlow';
-import UserDashboard from './pages/user/Dashboard';
 
 import { TaskProvider } from './taskContext';
 import { LanguageProvider } from './languageContext';
@@ -53,15 +52,6 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['staff']}>
                 <StaffDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/user/*" 
-            element={
-              <ProtectedRoute allowedRoles={['user']}>
-                <UserDashboard />
               </ProtectedRoute>
             } 
           />

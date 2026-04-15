@@ -50,11 +50,7 @@ export default function MeterReading() {
   }, [assignedTask, selectedUser, allUsers]);
 
   const customers = useMemo(() => 
-    allUsers.filter(u => u.role === 'user' && 
-      (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       u.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       u.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    ), 
+    [], 
   [allUsers, searchTerm]);
 
   const handleSubmit = (e: React.FormEvent) => {

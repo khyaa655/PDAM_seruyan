@@ -22,12 +22,12 @@ import { useLanguage } from '../languageContext';
 import LanguageToggle from '../components/LanguageToggle';
 
 type Step = 'role' | 'login' | 'register' | 'forgot-password' | 'verify-code' | 'pending-info';
-type Role = 'admin' | 'staff' | 'user';
+type Role = 'admin' | 'staff';
 
 export default function Login() {
   const { user, login, register, verifyCode } = useAuth();
   const { t } = useLanguage();
-  const [selectedRole, setSelectedRole] = useState<Role>('user');
+  const [selectedRole, setSelectedRole] = useState<Role>('admin');
   const [step, setStep] = useState<Step>('role');
   
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -43,7 +43,7 @@ export default function Login() {
   if (user) {
     if (user.role === 'admin') return <Navigate to="/admin" replace />;
     if (user.role === 'staff') return <Navigate to="/staff" replace />;
-    return <Navigate to="/user" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -140,15 +140,6 @@ export default function Login() {
                     <div className="text-left">
                       <span className="block font-bold text-slate-800">{t('login.role.staff.title')}</span>
                       <span className="text-xs text-slate-500">{t('login.role.staff.desc')}</span>
-                    </div>
-                  </button>
-                  <button onClick={() => { setSelectedRole('user'); setStep('login'); }} className="group flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white">
-                    <div className="w-12 h-12 rounded-xl bg-green-100 text-green-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                      <UserIcon size={24} />
-                    </div>
-                    <div className="text-left">
-                      <span className="block font-bold text-slate-800">{t('login.role.user.title')}</span>
-                      <span className="text-xs text-slate-500">{t('login.role.user.desc')}</span>
                     </div>
                   </button>
                 </div>

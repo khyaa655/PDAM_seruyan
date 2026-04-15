@@ -34,16 +34,6 @@ const INITIAL_USERS: User[] = [
     role: 'staff',
     status: 'active',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop'
-  },
-  {
-    id: 'user-1',
-    name: 'Ahmad Customer',
-    email: 'user@seruyan.id',
-    phone: '08333333333',
-    password: 'password',
-    role: 'user',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop'
   }
 ];
 

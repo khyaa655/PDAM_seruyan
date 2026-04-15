@@ -33,6 +33,7 @@ import { useLanguage } from '../../languageContext';
 import LanguageToggle from '../../components/LanguageToggle';
 import WaterFlow from './WaterFlow';
 import Billing from './Billing';
+import { User, Task } from '../../types';
 
 type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users';
 
@@ -54,12 +55,11 @@ export default function AdminDashboard() {
     email: '',
     phone: '',
     password: '',
-    role: 'user' as const
+    role: 'staff' as const
   });
-  const [newUserForm, setNewTaskForm] = useState({
+  const [newTaskForm, setNewTaskForm] = useState({
     type: 'repair' as 'repair' | 'reading' | 'disconnection',
-    customerId: '',
-    customerName: '',
+
     location: '',
     district: '',
     priority: 'normal' as 'high' | 'normal',
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
       await register(newUserReg.name, newUserReg.email, newUserReg.phone, newUserReg.password, newUserReg.role);
       showNotification(t('admin.user.success_create'), 'success');
       setIsAddingUser(false);
-      setNewUserReg({ name: '', email: '', phone: '', password: '', role: 'user' });
+      setNewUserReg({ name: '', email: '', phone: '', password: '', role: 'staff' });
     } catch (err: any) {
       showNotification(err.message, 'error');
     }
@@ -91,27 +91,22 @@ export default function AdminDashboard() {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    const customer = allUsers.find(u => u.id === newUserForm.customerId);
     
     createTask({
       title: '', // Generated in UI
-      type: newUserForm.type,
-      location: newUserForm.location,
-      district: newUserForm.district,
-      priority: newUserForm.priority,
-      customerId: newUserForm.customerId,
-      customerName: customer?.name || t('admin.tasks.unknown_customer'),
-      reason: newUserForm.reason,
-      assignedTo: newUserForm.assignedTo || undefined,
-      deadline: newUserForm.priority === 'high' ? 'URGENT' : 'CYCLE'
+      type: newTaskForm.type,
+      location: newTaskForm.location,
+      district: newTaskForm.district,
+      priority: newTaskForm.priority,
+      reason: newTaskForm.reason,
+      assignedTo: newTaskForm.assignedTo || undefined,
+      deadline: newTaskForm.priority === 'high' ? 'URGENT' : 'CYCLE'
     });
     
     showNotification(t('admin.tasks.success'), 'success');
     setIsAddingTask(false);
     setNewTaskForm({
       type: 'repair',
-      customerId: '',
-      customerName: '',
       location: '',
       district: '',
       priority: 'normal',
@@ -121,9 +116,9 @@ export default function AdminDashboard() {
   };
 
   const stats = [
-    { label: t('admin.stats.total_customers'), value: allUsers.filter(u => u.role === 'user').length.toString(), change: '+4.2%', color: 'text-primary', icon: Users, trend: 'up' },
-    { label: t('admin.stats.active_staff'), value: allUsers.filter(u => u.role === 'staff' && u.status === 'active').length.toString(), sub: t('admin.stats.active_online'), color: 'text-tertiary', icon: BadgeCheck },
-    { label: t('admin.stats.task_orders'), value: tasks.filter(t => t.status !== 'completed').length.toString(), sub: t('admin.stats.pending_tasks'), color: 'text-secondary', icon: Clock },
+    { label: t('admin.stats.total_staff'), value: allUsers.filter((u: User) => u.role === 'staff').length.toString(), change: '+4.2%', color: 'text-primary', icon: Users, trend: 'up' as const },
+    { label: t('admin.stats.active_staff'), value: allUsers.filter((u: User) => u.role === 'staff' && u.status === 'active').length.toString(), sub: t('admin.stats.active_online'), color: 'text-tertiary', icon: BadgeCheck },
+    { label: t('admin.stats.task_orders'), value: tasks.filter((task: Task) => task.status !== 'completed').length.toString(), sub: t('admin.stats.pending_tasks'), color: 'text-secondary', icon: Clock },
   ];
 
   const renderContent = () => {
@@ -158,7 +153,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {allUsers.map((u) => (
+              {allUsers.map((u: User) => (
                 <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
@@ -629,12 +624,21 @@ export default function AdminDashboard() {
                   <p className="text-sm font-bold text-slate-800">{user?.name}</p>
                   <p className="text-[10px] text-primary font-extrabold uppercase tracking-tighter">{t('admin.profile.role')}</p>
                </div>
-               <div className="w-12 h-12 rounded-2xl overflow-hidden ring-4 ring-primary/5 shadow-inner">
-                  <img 
-                    src={user?.avatar || "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&h=100&fit=crop"} 
-                    alt="Admin" 
-                    className="w-full h-full object-cover" 
-                  />
+               <div className="flex items-center gap-3">
+                  <button 
+                    onClick={logout}
+                    className="p-2.5 text-slate-400 hover:text-error hover:bg-red-50 rounded-xl transition-all border border-slate-100 hover:border-red-100"
+                    title={t('common.logout')}
+                  >
+                    <LogOut size={18} />
+                  </button>
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden ring-4 ring-primary/5 shadow-inner">
+                    <img 
+                      src={user?.avatar || "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&h=100&fit=crop"} 
+                      alt="Admin" 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
                </div>
             </div>
           </div>
@@ -770,9 +774,9 @@ export default function AdminDashboard() {
                              <button
                                key={type}
                                type="button"
-                               onClick={() => setNewTaskForm({...newUserForm, type})}
+                               onClick={() => setNewTaskForm({...newTaskForm, type})}
                                className={`px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center gap-1.5 border ${
-                                 newUserForm.type === type ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'
+                                 newTaskForm.type === type ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'
                                }`}
                              >
                                {type === 'repair' ? <Wrench size={14} /> : type === 'reading' ? <TrendingUp size={14} /> : <Scissors size={14} />}
@@ -789,9 +793,9 @@ export default function AdminDashboard() {
                              <button
                                key={p}
                                type="button"
-                               onClick={() => setNewTaskForm({...newUserForm, priority: p})}
+                               onClick={() => setNewTaskForm({...newTaskForm, priority: p})}
                                className={`flex-1 py-3 rounded-xl text-xs font-extrabold uppercase transition-all ${
-                                 newUserForm.priority === p ? (p === 'high' ? 'bg-red-500 text-white' : 'bg-primary text-white') : 'bg-slate-100 text-slate-400'
+                                 newTaskForm.priority === p ? (p === 'high' ? 'bg-red-500 text-white' : 'bg-primary text-white') : 'bg-slate-100 text-slate-400'
                                }`}
                              >
                                {t(`admin.tasks.priority.${p}`)}
@@ -801,29 +805,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                       <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.tasks.label.customer')}</label>
-                          <select 
-                            required
-                            value={newUserForm.customerId}
-                            onChange={e => {
-                               const customer = allUsers.find(u => u.id === e.target.value);
-                               setNewTaskForm({...newUserForm, customerId: e.target.value, customerName: customer?.name || ''})
-                            }}
-                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
-                          >
-                             <option value="">{t('admin.tasks.select_customer')}</option>
-                             {allUsers.filter(u => u.role === 'user').map(u => (
-                               <option key={u.id} value={u.id}>{u.name} ({u.id})</option>
-                             ))}
-                          </select>
-                       </div>
+                    <div className="grid grid-cols-1 gap-6">
                        <div className="space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.tasks.label.staff')}</label>
                           <select 
-                            value={newUserForm.assignedTo}
-                            onChange={e => setNewTaskForm({...newUserForm, assignedTo: e.target.value})}
+                            value={newTaskForm.assignedTo}
+                            onChange={e => setNewTaskForm({...newTaskForm, assignedTo: e.target.value})}
                             className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
                           >
                              <option value="">{t('admin.tasks.unassigned')}</option>
@@ -840,8 +827,8 @@ export default function AdminDashboard() {
                           <input 
                             type="text"
                             required
-                            value={newUserForm.district}
-                            onChange={e => setNewTaskForm({...newUserForm, district: e.target.value})}
+                            value={newTaskForm.district}
+                            onChange={e => setNewTaskForm({...newTaskForm, district: e.target.value})}
                             placeholder={t('admin.tasks.placeholder.district')}
                             className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
                           />
@@ -851,8 +838,8 @@ export default function AdminDashboard() {
                           <input 
                             type="text"
                             required
-                            value={newUserForm.location}
-                            onChange={e => setNewTaskForm({...newUserForm, location: e.target.value})}
+                            value={newTaskForm.location}
+                            onChange={e => setNewTaskForm({...newTaskForm, location: e.target.value})}
                             placeholder={t('admin.tasks.placeholder.location')}
                             className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
                           />
@@ -864,9 +851,9 @@ export default function AdminDashboard() {
                        <textarea 
                          required
                          rows={3}
-                         value={newUserForm.reason}
-                         onChange={e => setNewTaskForm({...newUserForm, reason: e.target.value})}
-                         placeholder={newUserForm.type === 'disconnection' ? t('admin.tasks.placeholder.reason_disconnect') : t('admin.tasks.placeholder.reason_leak')}
+                         value={newTaskForm.reason}
+                         onChange={e => setNewTaskForm({...newTaskForm, reason: e.target.value})}
+                         placeholder={newTaskForm.type === 'disconnection' ? t('admin.tasks.placeholder.reason_disconnect') : t('admin.tasks.placeholder.reason_leak')}
                          className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium resize-none"
                        />
                     </div>
