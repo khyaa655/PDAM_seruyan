@@ -25,7 +25,7 @@ type Step = 'role' | 'login' | 'register' | 'forgot-password' | 'verify-code' | 
 type Role = 'admin' | 'staff';
 
 export default function Login() {
-  const { user, login, register, verifyCode } = useAuth();
+  const { user, login, loginWithGoogle, register, verifyCode } = useAuth();
   const { t } = useLanguage();
   const [selectedRole, setSelectedRole] = useState<Role>('admin');
   const [step, setStep] = useState<Step>('role');
@@ -78,6 +78,25 @@ export default function Login() {
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const result = await loginWithGoogle(selectedRole);
+      if (!result.success) {
+        if (result.message === 'PENDING_VERIFICATION') {
+          setError("Your account is pending admin approval. Please wait for activation.");
+        } else {
+          setError(result.message || 'Google login failed');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -338,9 +357,10 @@ export default function Login() {
                     <div className="h-px bg-slate-200 flex-1"></div>
                   </div>
                   <button 
-                    onClick={() => login(selectedRole === 'admin' ? 'admin@seruyan.id' : selectedRole === 'staff' ? 'staff@seruyan.id' : 'user@seruyan.id', 'password')} 
+                    onClick={handleGoogleLogin} 
                     type="button" 
-                    className="mt-6 w-full py-3.5 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all"
+                    disabled={isSubmitting}
+                    className="mt-6 w-full py-3.5 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all disabled:opacity-50"
                   >
                     <GoogleIcon />
                     {t('login.button.google')}
