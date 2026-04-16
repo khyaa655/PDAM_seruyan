@@ -44,12 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch additional profile data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
         if (userDoc.exists()) {
           const userData = userDoc.data() as User;
           setUser({ ...userData, id: firebaseUser.uid });
         } else {
-          // Fallback if doc doesn't exist yet (e.g. during registration race condition)
+          // If doc doesn't exist, we don't set user to null immediately 
+          // to allow loginWithGoogle or register to complete their setDoc calls.
+          // Instead, we just wait. If after some time it still doesn't exist, then it's null.
           setUser(null);
         }
       } else {
@@ -146,6 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await signOut(auth);
           return { success: false, message: 'PENDING_VERIFICATION' };
         }
+        
+        setUser(newUser);
       } else {
         const userData = userDoc.data() as User;
         if (userData.status === 'blocked') {
@@ -156,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await signOut(auth);
           return { success: false, message: 'PENDING_VERIFICATION' };
         }
+        setUser({ ...userData, id: firebaseUser.uid });
       }
 
       return { success: true };
