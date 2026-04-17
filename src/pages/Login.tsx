@@ -21,20 +21,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../languageContext';
 import LanguageToggle from '../components/LanguageToggle';
 
-type Step = 'role' | 'login' | 'register' | 'forgot-password' | 'verify-code' | 'pending-info';
+type Step = 'role' | 'login' | 'forgot-password' | 'verify-code' | 'pending-info';
 type Role = 'admin' | 'staff';
 
 export default function Login() {
-  const { user, login, loginWithGoogle, register, verifyCode } = useAuth();
+  const { user, login, loginWithGoogle, verifyCode } = useAuth();
   const { t } = useLanguage();
   const [selectedRole, setSelectedRole] = useState<Role>('admin');
   const [step, setStep] = useState<Step>('role');
   
   const [emailOrPhone, setEmailOrPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [vCode, setVCode] = useState('');
   
   const [error, setError] = useState('');
@@ -61,13 +58,9 @@ export default function Login() {
             setError(result.message || 'Login failed');
           }
         }
-      } else if (step === 'register') {
-        const result = await register(name, email, phone, password, selectedRole);
-        if (result.status === 'pending') {
-          setStep('verify-code');
-        }
+
       } else if (step === 'verify-code') {
-        const result = await verifyCode(emailOrPhone || email || phone, vCode);
+        const result = await verifyCode(emailOrPhone, vCode);
         if (!result.success) {
           setError(result.message || 'Verification failed');
         }
@@ -235,12 +228,10 @@ export default function Login() {
                   {getRoleLabel(selectedRole)} Access
                 </span>
                 <h2 className="text-2xl font-bold text-slate-800">
-                  {step === 'login' ? t('login.title') : step === 'register' ? t('login.footer.register') : 'Recover Access'}
+                  {step === 'login' ? t('login.title') : 'Recover Access'}
                 </h2>
                 <p className="text-slate-500 text-sm mt-1">
-                  {step === 'login' ? t('login.subtitle') : 
-                   step === 'register' ? 'Register with your contact details below.' : 
-                   'Provide your contact info to receive reset instructions.'}
+                  {step === 'login' ? t('login.subtitle') : 'Provide your contact info to receive reset instructions.'}
                 </p>
               </div>
 
@@ -252,25 +243,7 @@ export default function Login() {
               )}
 
               <form onSubmit={handleFormSubmit} className="space-y-4">
-                {step === 'register' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Full Name</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <UserCircle className="h-5 w-5 text-slate-400" />
-                      </div>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. John Doe"
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                        required
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                )}
+
                 
                 <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-600 ml-1">
@@ -282,9 +255,9 @@ export default function Login() {
                     </div>
                     <input
                       type="text"
-                      value={step === 'login' ? emailOrPhone : email}
-                      onChange={(e) => step === 'login' ? setEmailOrPhone(e.target.value) : setEmail(e.target.value)}
-                      placeholder={step === 'login' ? 'you@link.com or 08...' : 'you@example.com'}
+                      value={emailOrPhone}
+                      onChange={(e) => setEmailOrPhone(e.target.value)}
+                      placeholder={'you@link.com or 08...'}
                       className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                       required
                       disabled={isSubmitting}
@@ -292,25 +265,7 @@ export default function Login() {
                   </div>
                 </div>
 
-                {step === 'register' && (
-                   <div className="space-y-1">
-                     <label className="text-xs font-semibold text-slate-600 ml-1">WhatsApp Number</label>
-                     <div className="relative">
-                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                         <Phone className="h-5 w-5 text-slate-400" />
-                       </div>
-                       <input
-                         type="tel"
-                         value={phone}
-                         onChange={(e) => setPhone(e.target.value)}
-                         placeholder="0812..."
-                         className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                         required
-                         disabled={isSubmitting}
-                       />
-                     </div>
-                   </div>
-                )}
+
 
                 {step !== 'forgot-password' && (
                   <div className="space-y-1">
@@ -345,7 +300,7 @@ export default function Login() {
                   disabled={isSubmitting}
                   className="w-full py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (step === 'login' ? t('login.button.signin') : step === 'register' ? 'Create Hub' : 'Send Instructions')}
+                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (step === 'login' ? t('login.button.signin') : 'Send Instructions')}
                 </button>
               </form>
 
@@ -369,11 +324,7 @@ export default function Login() {
               )}
 
               <div className="mt-6 text-center text-sm text-slate-500">
-                {step === 'login' ? (
-                  <>{t('login.footer.noaccount')} <button onClick={() => setStep('register')} className="font-bold text-primary">{t('login.footer.register')}</button></>
-                ) : step === 'register' ? (
-                  <>{t('login.footer.haveaccount')} <button onClick={() => setStep('login')} className="font-bold text-primary">{t('common.logout')}</button></>
-                ) : (
+                {step === 'login' ? null : (
                   <button onClick={() => setStep('login')} className="font-bold text-primary">{t('login.footer.back')}</button>
                 )}
               </div>
