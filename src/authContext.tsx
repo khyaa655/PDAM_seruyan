@@ -52,11 +52,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (userDoc.exists()) {
           const userData = userDoc.data() as User;
-          setUser({ ...userData, id: firebaseUser.uid });
+          if (userData.status === 'active') {
+            setUser({ ...userData, id: firebaseUser.uid });
+          } else {
+            // User is pending or blocked, don't set user state
+            // Let the login function handle the error message
+            setUser(null);
+            await signOut(auth);
+          }
         } else {
-          // If doc doesn't exist, we don't set user to null immediately 
-          // to allow loginWithGoogle or register to complete their setDoc calls.
-          // Instead, we just wait. If after some time it still doesn't exist, then it's null.
           setUser(null);
         }
       } else {
@@ -114,6 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: 'Account blocked' };
       }
 
+      // Backfill password to Firestore if missing
+      if (!userData.password) {
+        await updateDoc(doc(db, 'user', firebaseUser.uid), { password });
+      }
+
       return { success: true };
     } catch (error: any) {
       console.error('Login error:', error);
@@ -144,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         phone,
         address,
+        password, // Store password in Firestore
         role,
         status,
         verificationCode,

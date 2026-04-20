@@ -53,6 +53,7 @@ export default function AdminDashboard() {
   const [selectedTaskForAssignment, setSelectedTaskForAssignment] = useState<string | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<string[]>([]);
 
   // Form states
   const [newUserReg, setNewUserReg] = useState({
@@ -98,6 +99,16 @@ export default function AdminDashboard() {
   const openAddUser = () => {
     setNewUserReg({ name: '', email: '', phone: '', address: '', password: '', role: userFilter });
     setIsAddingUser(true);
+  };
+
+  const handleToggleStatus = async (userId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
+      await updateUserStatus(userId, newStatus);
+      showNotification(t('admin.user.msg.status_updated'), 'success');
+    } catch (err: any) {
+      showNotification(t('admin.user.msg.status_error'), 'error');
+    }
   };
 
   const handleCreateTask = (e: React.FormEvent) => {
@@ -184,6 +195,7 @@ export default function AdminDashboard() {
               <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <th className="px-8 py-5">{t('admin.user.table.identity')}</th>
                 <th className="px-8 py-5">{t('admin.user.table.contact')}</th>
+                <th className="px-8 py-5">{t('admin.user.table.password')}</th>
                 <th className="px-8 py-5">{t('admin.user.table.role_status')}</th>
                 <th className="px-8 py-5 text-right">{t('admin.user.table.actions')}</th>
               </tr>
@@ -214,6 +226,20 @@ export default function AdminDashboard() {
                       <p className="text-xs text-slate-500 font-medium">{u.phone}</p>
                     </td>
                     <td className="px-8 py-5">
+                      <div className="flex items-center gap-2 group/pass">
+                        <p className="text-xs font-mono font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                          {visiblePasswords.includes(u.id) ? (u.password || '••••••••') : '••••••••'}
+                        </p>
+                        <button 
+                          onClick={() => setVisiblePasswords(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                          className="p-1.5 hover:bg-primary/10 rounded-lg text-slate-400 hover:text-primary transition-all opacity-0 group-hover/pass:opacity-100"
+                          title={visiblePasswords.includes(u.id) ? 'Hide Password' : 'Show Password'}
+                        >
+                          {visiblePasswords.includes(u.id) ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
                       <div className="flex flex-col gap-1.5">
                         <span className={`w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           u.role === 'admin' ? 'bg-orange-100 text-orange-700' : 
@@ -229,9 +255,25 @@ export default function AdminDashboard() {
                       </div>
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all"><Edit size={18} /></button>
-                        <button className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all"><Ban size={18} /></button>
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95 transition-all"><Edit size={18} /></button>
+                        {u.status === 'active' ? (
+                          <button 
+                            onClick={() => handleToggleStatus(u.id, u.status)}
+                            className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all active:scale-95 group/btn"
+                            title={t('admin.user.button.deactivate')}
+                          >
+                            <Ban size={18} className="group-hover/btn:rotate-12 transition-transform" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleToggleStatus(u.id, u.status)}
+                            className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all active:scale-95 group/btn"
+                            title={t('admin.user.button.activate')}
+                          >
+                            <Check size={18} className="group-hover/btn:scale-125 transition-transform" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

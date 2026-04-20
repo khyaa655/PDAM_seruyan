@@ -17,7 +17,8 @@ import {
   MessageSquare,
   KeyRound,
   Eye,
-  EyeOff
+  EyeOff,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../languageContext';
@@ -71,7 +72,9 @@ export default function Login() {
         const result = await login(emailOrPhone, password);
         if (!result.success) {
           if (result.message === 'PENDING_VERIFICATION') {
-            setStep('verify-code');
+            setStep('pending-info');
+          } else if (result.message === 'Account blocked') {
+            setError(t('login.error.blocked'));
           } else {
             setError(result.message || 'Login failed');
           }
@@ -302,6 +305,30 @@ export default function Login() {
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('login.reset.confirm_button')}
                 </button>
               </form>
+            </motion.div>
+          ) : step === 'pending-info' ? (
+            <motion.div 
+               key="pending"
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-10 border border-white/50 text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+              <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner ring-8 ring-amber-50 group-hover:scale-110 transition-transform">
+                <Clock size={40} />
+              </div>
+              <h2 className="text-3xl font-headline font-bold text-slate-800 mb-4">{t('login.pending.title')}</h2>
+              <div className="p-6 bg-slate-50/80 rounded-2xl border border-slate-100 mb-10">
+                <p className="text-slate-600 font-medium leading-relaxed">
+                  {t('login.pending.subtitle')}
+                </p>
+              </div>
+              <button
+                onClick={() => { setStep('role'); setError(''); }}
+                className="w-full py-4.5 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center gap-3 uppercase tracking-wider text-xs"
+              >
+                {t('login.pending.button')}
+              </button>
             </motion.div>
           ) : step === 'reset-success' ? (
             <motion.div 
