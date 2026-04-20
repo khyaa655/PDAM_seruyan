@@ -35,7 +35,7 @@ import { useLanguage } from '../../languageContext';
 import LanguageToggle from '../../components/LanguageToggle';
 import WaterFlow from './WaterFlow';
 import Billing from './Billing';
-import { User, Task } from '../../types';
+import { User, Task, UserRole } from '../../types';
 
 type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users';
 type UserFilter = 'staff' | 'customer';
@@ -60,7 +60,7 @@ export default function AdminDashboard() {
     email: '',
     phone: '',
     password: '',
-    role: 'staff' as const
+    role: 'staff' as UserRole
   });
   const [newTaskForm, setNewTaskForm] = useState({
     type: 'repair' as 'repair' | 'reading' | 'disconnection',
@@ -184,7 +184,6 @@ export default function AdminDashboard() {
                 <th className="px-8 py-5">{t('admin.user.table.identity')}</th>
                 <th className="px-8 py-5">{t('admin.user.table.contact')}</th>
                 <th className="px-8 py-5">{t('admin.user.table.role_status')}</th>
-                <th className="px-8 py-5">{t('admin.user.table.v_actions')}</th>
                 <th className="px-8 py-5 text-right">{t('admin.user.table.actions')}</th>
               </tr>
             </thead>
@@ -227,34 +226,6 @@ export default function AdminDashboard() {
                           {u.status.toUpperCase()}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      {u.role === 'staff' ? (
-                        <div className="flex flex-col gap-2">
-                           <div className="flex items-center gap-2">
-                             <code className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-mono font-bold text-slate-700 border border-slate-200">
-                               {u.verificationCode || '----'}
-                             </code>
-                             <button 
-                               onClick={() => u.verificationCode && copyToClipboard(u.verificationCode)}
-                               className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-all"
-                               title="Copy Code"
-                             >
-                               <Copy size={16} />
-                             </button>
-                           </div>
-                           {u.status === 'pending' && (
-                             <button 
-                               onClick={() => updateUserStatus(u.id, 'active')}
-                               className="text-[10px] font-bold text-primary hover:underline w-fit"
-                             >
-                               Force Activate
-                             </button>
-                           )}
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 italic">{t('admin.user.verified')}</span>
-                      )}
                     </td>
                     <td className="px-8 py-5 text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -760,26 +731,17 @@ export default function AdminDashboard() {
                       <input type="tel" required value={newUserReg.phone} onChange={e => setNewUserReg({...newUserReg, phone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" placeholder="08..." />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.password')}</label>
-                      <div className="relative">
-                        <input type={showPassword ? 'text' : 'password'} required value={newUserReg.password} onChange={e => setNewUserReg({...newUserReg, password: e.target.value})} className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.role')}</label>
-                      <select value={newUserReg.role} onChange={e => setNewUserReg({...newUserReg, role: e.target.value as any})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none">
-                        <option value="customer">{t('admin.user.role.customer')}</option>
-                        <option value="staff">{t('admin.user.role.staff')}</option>
-                      </select>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.password')}</label>
+                    <div className="relative">
+                      <input type={showPassword ? 'text' : 'password'} required value={newUserReg.password} onChange={e => setNewUserReg({...newUserReg, password: e.target.value})} className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </div>
                   <div className="flex gap-4 pt-4">

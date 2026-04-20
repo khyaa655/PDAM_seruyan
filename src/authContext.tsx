@@ -7,8 +7,12 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
   confirmPasswordReset,
-  User as FirebaseUser 
+  User as FirebaseUser,
+  getAuth,
+  setPersistence,
+  inMemoryPersistence
 } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
 import { 
   doc, 
   getDoc, 
@@ -19,7 +23,7 @@ import {
   query,
   where
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, firebaseConfig } from './firebase';
 import { User, UserRole } from './types';
 
 interface AuthContextType {
@@ -128,15 +132,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, phone: string, password: string, role: UserRole) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const secondaryApp = initializeApp(firebaseConfig, `SecondaryApp-${Date.now()}`);
+      const secondaryAuth = getAuth(secondaryApp);
+      await setPersistence(secondaryAuth, inMemoryPersistence);
+
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       const firebaseUser = userCredential.user;
 
-      const isStaff = role === 'staff';
-      const status = isStaff ? 'pending' : 'active';
-      
-      const verificationCode = isStaff 
-        ? Math.floor(100000 + Math.random() * 900000).toString() 
-        : undefined;
+      const status = 'active';
 
       const newUser: User = {
         id: firebaseUser.uid,
@@ -145,15 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone,
         role,
         status,
-        verificationCode,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
       };
 
       await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
 
-      if (status === 'pending') {
-        await signOut(auth);
-      }
+      // Sign out from the secondary instance just to clear its state
+      await signOut(secondaryAuth);
 
       return { success: true, status: status as 'active' | 'pending' };
     } catch (error: any) {
@@ -166,25 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const verifyCode = async (emailOrPhone: string, code: string) => {
-    // This is tricky with Firebase Auth because the user is already registered but signed out.
-    // We need to find the user in Firestore by email/phone first.
-    try {
-      const q = query(collection(db, 'users'), where('email', '==', emailOrPhone));
-      // Note: In a real app, you'd also check phone.
-      
-      // We'll use a simplified approach since this is a refactor:
-      // In a real Firebase app, you usually don't use "verification codes" like this 
-      // unless you're doing custom email links or SMS.
-      // But for this project, we'll keep the logic: find user, check code, update status.
-      
-      // I'll fetch the user, update their status to active, then they can login.
-      // Or auto-login if they have the password (which they should).
-      
-      // For now, let's just update the status in Firestore.
-      return { success: false, message: 'Verification logic requires manual admin approval or SMS service integration' };
-    } catch (error) {
-      return { success: false, message: 'Verification failed' };
-    }
+    return { success: false, message: 'Verification code feature has been removed' };
   };
 
   const logout = async () => {
