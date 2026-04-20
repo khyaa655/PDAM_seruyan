@@ -22,9 +22,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Scissors,
-  Check,
   X,
-  UserPlus
+  UserPlus,
+  Eye,
+  EyeOff,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../authContext';
@@ -48,6 +50,7 @@ export default function AdminDashboard() {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [selectedTaskForAssignment, setSelectedTaskForAssignment] = useState<string | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form states
   const [newUserReg, setNewUserReg] = useState({
@@ -719,7 +722,16 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.password')}</label>
-                      <input type="password" required value={newUserReg.password} onChange={e => setNewUserReg({...newUserReg, password: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                      <div className="relative">
+                        <input type={showPassword ? 'text' : 'password'} required value={newUserReg.password} onChange={e => setNewUserReg({...newUserReg, password: e.target.value})} className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.role')}</label>
