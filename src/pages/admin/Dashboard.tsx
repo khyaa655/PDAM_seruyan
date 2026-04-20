@@ -38,12 +38,14 @@ import Billing from './Billing';
 import { User, Task } from '../../types';
 
 type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users';
+type UserFilter = 'staff' | 'customer';
 
 export default function AdminDashboard() {
   const { user, logout, allUsers, updateUserStatus, register } = useAuth();
   const { tasks, createTask, assignTask, isLoading: tasksLoading } = useTasks();
   const { t } = useLanguage();
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
+  const [userFilter, setUserFilter] = useState<UserFilter>('staff');
   
   // Modals state
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -92,6 +94,11 @@ export default function AdminDashboard() {
     }
   };
 
+  const openAddUser = () => {
+    setNewUserReg({ name: '', email: '', phone: '', password: '', role: userFilter });
+    setIsAddingUser(true);
+  };
+
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -133,16 +140,42 @@ export default function AdminDashboard() {
         <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-8 py-8 flex justify-between items-center bg-white">
             <div>
-              <h2 className="text-2xl font-headline font-bold text-slate-800">{t('admin.user.management')}</h2>
+              <h2 className="text-2xl font-headline font-bold text-slate-800">
+                {userFilter === 'staff' ? t('admin.user.management') : 'Manajemen Pelanggan'}
+              </h2>
               <p className="text-sm text-slate-500 font-medium">{t('admin.user.management_sub')}</p>
             </div>
-            <button 
-              onClick={() => setIsAddingUser(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-            >
-              <UserPlus size={20} />
-              {t('admin.user.add_new')}
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2 bg-slate-100 rounded-2xl p-1">
+                <button
+                  onClick={() => setUserFilter('staff')}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    userFilter === 'staff'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {t('admin.user.role.staff')}
+                </button>
+                <button
+                  onClick={() => setUserFilter('customer')}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    userFilter === 'customer'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {t('admin.user.role.customer')}
+                </button>
+              </div>
+              <button 
+                onClick={() => openAddUser()}
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+              >
+                <UserPlus size={20} />
+                {t('admin.user.add_new')}
+              </button>
+            </div>
           </div>
           
           <table className="w-full text-left">
@@ -156,74 +189,82 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {allUsers.map((u: User) => (
-                <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
-                        {u.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">{u.name}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{u.id}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <p className="text-xs font-bold text-slate-700">{u.email}</p>
-                    <p className="text-xs text-slate-500 font-medium">{u.phone}</p>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col gap-1.5">
-                      <span className={`w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        u.role === 'admin' ? 'bg-orange-100 text-orange-700' : 
-                        u.role === 'staff' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {u.role === 'admin' ? t('login.role.admin.title').split(' ')[0] : 
-                         u.role === 'staff' ? t('admin.user.role.staff') : t('admin.user.role.customer')}
-                      </span>
-                      <div className={`flex items-center gap-1.5 font-bold text-[10px] ${u.status === 'active' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500 pulse'}`}></div>
-                        {u.status.toUpperCase()}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    {u.role === 'staff' ? (
-                      <div className="flex flex-col gap-2">
-                         <div className="flex items-center gap-2">
-                           <code className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-mono font-bold text-slate-700 border border-slate-200">
-                             {u.verificationCode || '----'}
-                           </code>
-                           <button 
-                             onClick={() => u.verificationCode && copyToClipboard(u.verificationCode)}
-                             className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-all"
-                             title="Copy Code"
-                           >
-                             <Copy size={16} />
-                           </button>
-                         </div>
-                         {u.status === 'pending' && (
-                           <button 
-                             onClick={() => updateUserStatus(u.id, 'active')}
-                             className="text-[10px] font-bold text-primary hover:underline w-fit"
-                           >
-                             Force Activate
-                           </button>
-                         )}
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-slate-400 italic">{t('admin.user.verified')}</span>
-                    )}
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all"><Edit size={18} /></button>
-                      <button className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all"><Ban size={18} /></button>
-                    </div>
+              {allUsers.filter((u: User) => u.role === userFilter).length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
+                    Tidak ada {userFilter === 'staff' ? 'staff' : 'pelanggan'} yang ditemukan
                   </td>
                 </tr>
-              ))}
+              ) : (
+                allUsers.filter((u: User) => u.role === userFilter).map((u: User) => (
+                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                          {u.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{u.name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{u.id}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <p className="text-xs font-bold text-slate-700">{u.email}</p>
+                      <p className="text-xs text-slate-500 font-medium">{u.phone}</p>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col gap-1.5">
+                        <span className={`w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          u.role === 'admin' ? 'bg-orange-100 text-orange-700' : 
+                          u.role === 'staff' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {u.role === 'admin' ? t('login.role.admin.title').split(' ')[0] : 
+                           u.role === 'staff' ? t('admin.user.role.staff') : t('admin.user.role.customer')}
+                        </span>
+                        <div className={`flex items-center gap-1.5 font-bold text-[10px] ${u.status === 'active' ? 'text-emerald-600' : 'text-amber-500'}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500 pulse'}`}></div>
+                          {u.status.toUpperCase()}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      {u.role === 'staff' ? (
+                        <div className="flex flex-col gap-2">
+                           <div className="flex items-center gap-2">
+                             <code className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-mono font-bold text-slate-700 border border-slate-200">
+                               {u.verificationCode || '----'}
+                             </code>
+                             <button 
+                               onClick={() => u.verificationCode && copyToClipboard(u.verificationCode)}
+                               className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-all"
+                               title="Copy Code"
+                             >
+                               <Copy size={16} />
+                             </button>
+                           </div>
+                           {u.status === 'pending' && (
+                             <button 
+                               onClick={() => updateUserStatus(u.id, 'active')}
+                               className="text-[10px] font-bold text-primary hover:underline w-fit"
+                             >
+                               Force Activate
+                             </button>
+                           )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">{t('admin.user.verified')}</span>
+                      )}
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all"><Edit size={18} /></button>
+                        <button className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all"><Ban size={18} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </section>
@@ -736,7 +777,7 @@ export default function AdminDashboard() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.role')}</label>
                       <select value={newUserReg.role} onChange={e => setNewUserReg({...newUserReg, role: e.target.value as any})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none">
-                        <option value="user">{t('admin.user.role.customer')}</option>
+                        <option value="customer">{t('admin.user.role.customer')}</option>
                         <option value="staff">{t('admin.user.role.staff')}</option>
                       </select>
                     </div>
