@@ -30,7 +30,7 @@ interface AuthContextType {
   user: User | null;
   allUsers: User[];
   login: (emailOrPhone: string, password?: string) => Promise<{ success: boolean; message?: string }>;
-  register: (name: string, email: string, phone: string, password: string, role: UserRole) => Promise<{ success: boolean; status: 'active' | 'pending' }>;
+  register: (name: string, email: string, phone: string, address: string, password: string, role: UserRole) => Promise<{ success: boolean; status: 'active' | 'pending' }>;
   verifyCode: (emailOrPhone: string, code: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   updateUserStatus: (userId: string, status: 'active' | 'pending' | 'blocked') => Promise<void>;
@@ -95,9 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: 'Password is required' };
       }
 
-      // Simplified: Assuming email for now. 
-      // For phone login, we would need to map phone to email or use sign-in with phone.
-      const userCredential = await signInWithEmailAndPassword(auth, emailOrPhone, password);
+      let loginId = emailOrPhone;
+      // Convert username to email format
+      if (!loginId.includes('@') && isNaN(Number(loginId))) {
+        loginId = `${loginId}@pdamseruyan.com`;
+      }
+      const userCredential = await signInWithEmailAndPassword(auth, loginId, password);
       const firebaseUser = userCredential.user;
 
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -130,13 +133,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
 
-  const register = async (name: string, email: string, phone: string, password: string, role: UserRole) => {
+  const register = async (name: string, email: string, phone: string, address: string, password: string, role: UserRole) => {
     try {
+      let authEmail = email;
+      if (!authEmail.includes('@') && isNaN(Number(authEmail))) {
+        authEmail = `${authEmail}@pdamseruyan.com`;
+      }
+
       const secondaryApp = initializeApp(firebaseConfig, `SecondaryApp-${Date.now()}`);
       const secondaryAuth = getAuth(secondaryApp);
       await setPersistence(secondaryAuth, inMemoryPersistence);
 
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, authEmail, password);
       const firebaseUser = userCredential.user;
 
       const status = 'active';
@@ -146,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name,
         email,
         phone,
+        address,
         role,
         status,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`

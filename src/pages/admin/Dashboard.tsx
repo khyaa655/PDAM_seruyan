@@ -59,6 +59,7 @@ export default function AdminDashboard() {
     name: '',
     email: '',
     phone: '',
+    address: '',
     password: '',
     role: 'staff' as UserRole
   });
@@ -85,17 +86,17 @@ export default function AdminDashboard() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await register(newUserReg.name, newUserReg.email, newUserReg.phone, newUserReg.password, newUserReg.role);
+      await register(newUserReg.name, newUserReg.email, newUserReg.phone, newUserReg.address, newUserReg.password, newUserReg.role);
       showNotification(t('admin.user.success_create'), 'success');
       setIsAddingUser(false);
-      setNewUserReg({ name: '', email: '', phone: '', password: '', role: 'staff' });
+      setNewUserReg({ name: '', email: '', phone: '', address: '', password: '', role: 'staff' });
     } catch (err: any) {
       showNotification(err.message, 'error');
     }
   };
 
   const openAddUser = () => {
-    setNewUserReg({ name: '', email: '', phone: '', password: '', role: userFilter });
+    setNewUserReg({ name: '', email: '', phone: '', address: '', password: '', role: userFilter });
     setIsAddingUser(true);
   };
 
@@ -730,6 +731,10 @@ export default function AdminDashboard() {
                       <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.phone')}</label>
                       <input type="tel" required value={newUserReg.phone} onChange={e => setNewUserReg({...newUserReg, phone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" placeholder="08..." />
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 ml-1">Alamat Domisili</label>
+                    <textarea required value={newUserReg.address} onChange={e => setNewUserReg({...newUserReg, address: e.target.value})} rows={2} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none" placeholder="Alamat lengkap..."></textarea>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.user.label.password')}</label>

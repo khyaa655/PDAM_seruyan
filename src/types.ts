@@ -5,6 +5,7 @@ export interface User {
   name: string;
   email: string;
   phone: string; // Added for WA login
+  address?: string; // Menyesuaikan field 'alamat'
   password?: string;
   role: UserRole;
   status: 'active' | 'pending' | 'blocked';
@@ -41,4 +42,13 @@ export interface Bill {
   usage: number;
   paidDate: string;
   status: 'paid' | 'unpaid';
+}
+
+export interface MeterReading {
+  id: string;           // id_baca
+  customerId: string;   // Relasi ke id_pelanggan
+  previousValue: number;// sebelum
+  currentValue: number; // sesudah
+  image: string;        // foto meteran (blob / URL)
+  createdAt: string;
 }
