@@ -63,6 +63,9 @@ export default function AdminDashboard() {
   const [isEditingCustomer, setIsEditingCustomer] = useState(false);
   const [editCustomerData, setEditCustomerData] = useState<any>(null);
   
+  const [processComplaintData, setProcessComplaintData] = useState<any>(null);
+  const [selectedStaffForComplaint, setSelectedStaffForComplaint] = useState('');
+  
   const [selectedTaskForAssignment, setSelectedTaskForAssignment] = useState<string | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -200,6 +203,33 @@ export default function AdminDashboard() {
       } catch (error) {
         showNotification('Gagal mengirim link reset password', 'error');
       }
+    }
+  };
+
+  const submitProcessComplaint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!processComplaintData || !selectedStaffForComplaint) return;
+    
+    try {
+      // @ts-ignore
+      createTask({
+        title: `Pengaduan: ${processComplaintData.category}`,
+        type: 'repair',
+        location: processComplaintData.userAlamat || 'Alamat tidak tersedia',
+        district: 'Pengaduan Masuk',
+        priority: 'high',
+        reason: `${processComplaintData.category} - ${processComplaintData.description}`,
+        assignedTo: selectedStaffForComplaint,
+        deadline: 'URGENT',
+        pengaduanId: processComplaintData.id
+      });
+      
+      await updateDoc(doc(db, 'pengaduan', processComplaintData.id), { status: 'Diproses' });
+      showNotification('Pengaduan berhasil ditugaskan ke staff', 'success');
+      setProcessComplaintData(null);
+      setSelectedStaffForComplaint('');
+    } catch (error) {
+      showNotification('Gagal memproses pengaduan', 'error');
     }
   };
 
@@ -752,16 +782,12 @@ export default function AdminDashboard() {
                               </td>
                               <td className="px-8 py-5 text-right">
                                  <div className="flex justify-end gap-2">
-                                    {complaint.status !== 'Selesai' && (
+                                    {complaint.status === 'Menunggu Respon' && (
                                        <button 
-                                         onClick={async () => {
-                                           const newStatus = complaint.status === 'Menunggu Respon' ? 'Diproses' : 'Selesai';
-                                           await updateDoc(doc(db, 'pengaduan', complaint.id), { status: newStatus });
-                                           showNotification('Status berhasil diupdate', 'success');
-                                         }}
-                                         className="px-3 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-xs font-bold transition-all"
+                                         onClick={() => setProcessComplaintData(complaint)}
+                                         className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded-xl text-xs font-bold transition-all"
                                        >
-                                         Tandai {complaint.status === 'Menunggu Respon' ? 'Diproses' : 'Selesai'}
+                                         Proses ke Perintah Kerja
                                        </button>
                                     )}
                                     <button 
@@ -1073,6 +1099,45 @@ export default function AdminDashboard() {
               <p className="font-bold text-sm tracking-tight">{notification.message}</p>
               <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/20 rounded-lg p-1 transition-all"><X size={18} /></button>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {processComplaintData && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setProcessComplaintData(null)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden relative z-10 border border-slate-100"
+              >
+                <div className="p-8 pb-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-headline font-bold text-slate-800">Tugaskan Staff</h3>
+                    <p className="text-sm text-slate-500">Pilih staff untuk pengaduan ini</p>
+                  </div>
+                  <button onClick={() => setProcessComplaintData(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={20} /></button>
+                </div>
+                <form onSubmit={submitProcessComplaint} className="p-8 space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 ml-1">Pilih Staff Lapangan</label>
+                    <select required value={selectedStaffForComplaint} onChange={e => setSelectedStaffForComplaint(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none">
+                      <option value="">Pilih Staff...</option>
+                      {allUsers.filter(u => u.role === 'staff' && u.status === 'active').map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="pt-2">
+                    <button type="submit" className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs">Tugaskan Sekarang</button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 

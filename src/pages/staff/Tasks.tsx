@@ -22,6 +22,7 @@ import { useAuth } from '../../authContext';
 import { useTasks } from '../../taskContext';
 import { useLanguage } from '../../languageContext';
 import LanguageToggle from '../../components/LanguageToggle';
+import { db } from '../../firebase';
 
 type Tab = 'repair' | 'reading' | 'disconnection';
 

@@ -32,6 +32,7 @@ export interface Task {
     notes?: string;
     signature?: string;
   };
+  pengaduanId?: string; // <--- INI YANG DITAMBAHKAN
 }
 
 export interface Bill {
