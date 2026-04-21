@@ -27,7 +27,8 @@ import {
   Eye,
   EyeOff,
   Check,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../authContext';
@@ -38,6 +39,8 @@ import LanguageToggle from '../../components/LanguageToggle';
 import WaterFlow from './WaterFlow';
 import Billing from './Billing';
 import { User, Task, UserRole } from '../../types';
+import { db } from '../../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users' | 'requests';
 type UserFilter = 'staff' | 'customer';
@@ -50,6 +53,9 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [userFilter, setUserFilter] = useState<UserFilter>('staff');
   
+  // Data Pelanggan State
+  const [customers, setCustomers] = useState<any[]>([]);
+
   // Modals state
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -69,13 +75,20 @@ export default function AdminDashboard() {
   });
   const [newTaskForm, setNewTaskForm] = useState({
     type: 'repair' as 'repair' | 'reading' | 'disconnection' | 'new_connection',
-
     location: '',
     district: '',
     priority: 'normal' as 'high' | 'normal',
     reason: '',
     assignedTo: ''
   });
+
+  // Fetch data pelanggan dari Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'tb_pelanggan'), (snapshot) => {
+      setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
@@ -286,93 +299,158 @@ export default function AdminDashboard() {
           </div>
           
           <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <th className="px-8 py-5">{t('admin.user.table.identity')}</th>
-                <th className="px-8 py-5">{t('admin.user.table.contact')}</th>
-                <th className="px-8 py-5">{t('admin.user.table.password')}</th>
-                <th className="px-8 py-5">{t('admin.user.table.role_status')}</th>
-                <th className="px-8 py-5 text-right">{t('admin.user.table.actions')}</th>
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="px-8 py-5">IDENTITAS</th>
+                <th className="px-8 py-5">KONTAK</th>
+                {userFilter === 'staff' ? (
+                  <th className="px-8 py-5">PASSWORD</th>
+                ) : (
+                  <th className="px-8 py-5">DATA METER</th>
+                )}
+                <th className="px-8 py-5">STATUS</th>
+                <th className="px-8 py-5 text-right">AKSI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {allUsers.filter((u: User) => u.role === userFilter).length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
-                    Tidak ada {userFilter === 'staff' ? 'staff' : 'pelanggan'} yang ditemukan
-                  </td>
-                </tr>
-              ) : (
-                allUsers.filter((u: User) => u.role === userFilter).map((u: User) => (
-                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
-                          {u.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-800 text-sm">{u.name}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{u.id}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <p className="text-xs font-bold text-slate-700">{u.email}</p>
-                      <p className="text-xs text-slate-500 font-medium">{u.phone}</p>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-2 group/pass">
-                        <p className="text-xs font-mono font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                          {visiblePasswords.includes(u.id) ? (u.password || '••••••••') : '••••••••'}
-                        </p>
-                        <button 
-                          onClick={() => setVisiblePasswords(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
-                          className="p-1.5 hover:bg-primary/10 rounded-lg text-slate-400 hover:text-primary transition-all opacity-0 group-hover/pass:opacity-100"
-                          title={visiblePasswords.includes(u.id) ? 'Hide Password' : 'Show Password'}
-                        >
-                          {visiblePasswords.includes(u.id) ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col gap-1.5">
-                        <span className={`w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          u.role === 'admin' ? 'bg-orange-100 text-orange-700' : 
-                          u.role === 'staff' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                        }`}>
-                          {u.role === 'admin' ? t('login.role.admin.title').split(' ')[0] : 
-                           u.role === 'staff' ? t('admin.user.role.staff') : t('admin.user.role.customer')}
-                        </span>
-                        <div className={`flex items-center gap-1.5 font-bold text-[10px] ${u.status === 'active' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500 pulse'}`}></div>
-                          {u.status.toUpperCase()}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                        <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95 transition-all"><Edit size={18} /></button>
-                        {u.status === 'active' ? (
-                          <button 
-                            onClick={() => handleToggleStatus(u.id, u.status)}
-                            className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all active:scale-95 group/btn"
-                            title={t('admin.user.button.deactivate')}
-                          >
-                            <Ban size={18} className="group-hover/btn:rotate-12 transition-transform" />
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => handleToggleStatus(u.id, u.status)}
-                            className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all active:scale-95 group/btn"
-                            title={t('admin.user.button.activate')}
-                          >
-                            <Check size={18} className="group-hover/btn:scale-125 transition-transform" />
-                          </button>
-                        )}
-                      </div>
+              {userFilter === 'customer' ? (
+                // View untuk Pelanggan (Dari tb_pelanggan Firestore)
+                customers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
+                      Tidak ada data pelanggan yang ditemukan
                     </td>
                   </tr>
-                ))
+                ) : (
+                  customers.map((c: any) => (
+                    <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                            {c.nama ? c.nama.substring(0, 2).toUpperCase() : 'PL'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{c.nama || 'Tanpa Nama'}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{c.id.substring(0, 8)}...</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <p className="text-xs font-bold text-slate-700 truncate max-w-[200px]">{c.alamat || '-'}</p>
+                        <p className="text-xs text-slate-500 font-medium">{c.noHp || '-'}</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                            <Activity size={14} className="text-blue-500" />
+                            Meter: {c.no_meter || '-'}
+                          </div>
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500 uppercase">Utama</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700">
+                            PELANGGAN
+                          </span>
+                          <div className="flex items-center gap-1.5 font-bold text-[10px] text-emerald-600">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                            ACTIVE
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                          <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95" title="Edit">
+                            <Edit size={18} />
+                          </button>
+                          <button className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all active:scale-95" title="Hapus/Ban">
+                            <Ban size={18} />
+                          </button>
+                          <button className="p-2.5 rounded-xl hover:bg-amber-50 text-slate-400 hover:text-amber-500 transition-all active:scale-95" title="Reset Password">
+                            <Undo size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )
+              ) : (
+                // View untuk Staff (Dari allUsers Context)
+                allUsers.filter((u: User) => u.role === 'staff').length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
+                      Tidak ada staff yang ditemukan
+                    </td>
+                  </tr>
+                ) : (
+                  allUsers.filter((u: User) => u.role === 'staff').map((u: User) => (
+                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                            {u.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{u.name}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{u.id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <p className="text-xs font-bold text-slate-700">{u.email}</p>
+                        <p className="text-xs text-slate-500 font-medium">{u.phone}</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-2 group/pass">
+                          <p className="text-xs font-mono font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                            {visiblePasswords.includes(u.id) ? (u.password || '••••••••') : '••••••••'}
+                          </p>
+                          <button 
+                            onClick={() => setVisiblePasswords(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                            className="p-1.5 hover:bg-primary/10 rounded-lg text-slate-400 hover:text-primary transition-all opacity-0 group-hover/pass:opacity-100"
+                            title={visiblePasswords.includes(u.id) ? 'Hide Password' : 'Show Password'}
+                          >
+                            {visiblePasswords.includes(u.id) ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                            STAFF
+                          </span>
+                          <div className={`flex items-center gap-1.5 font-bold text-[10px] ${u.status === 'active' ? 'text-emerald-600' : 'text-amber-500'}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500 pulse'}`}></div>
+                            {u.status.toUpperCase()}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                          <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95"><Edit size={18} /></button>
+                          {u.status === 'active' ? (
+                            <button 
+                              onClick={() => handleToggleStatus(u.id, u.status)}
+                              className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all active:scale-95 group/btn"
+                              title={t('admin.user.button.deactivate')}
+                            >
+                              <Ban size={18} className="group-hover/btn:rotate-12 transition-transform" />
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleToggleStatus(u.id, u.status)}
+                              className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all active:scale-95 group/btn"
+                              title={t('admin.user.button.activate')}
+                            >
+                              <Check size={18} className="group-hover/btn:scale-125 transition-transform" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )
               )}
             </tbody>
           </table>
