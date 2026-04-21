@@ -13,12 +13,10 @@ import {
   LayoutDashboard, 
   CreditCard, 
   Wrench, 
-  Settings, 
   LogOut,
   Edit,
   Ban,
   Undo,
-  Copy,
   CheckCircle2,
   AlertTriangle,
   Scissors,
@@ -28,7 +26,8 @@ import {
   EyeOff,
   Check,
   FileText,
-  Activity
+  Activity,
+  Camera
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../authContext';
@@ -39,32 +38,36 @@ import LanguageToggle from '../../components/LanguageToggle';
 import WaterFlow from './WaterFlow';
 import Billing from './Billing';
 import { User, Task, UserRole } from '../../types';
-import { db } from '../../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../../firebase';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users' | 'requests';
 type UserFilter = 'staff' | 'customer';
+type TaskTab = 'tasks' | 'complaints';
 
 export default function AdminDashboard() {
   const { user, logout, allUsers, updateUserStatus, register } = useAuth();
-  const { tasks, createTask, assignTask, isLoading: tasksLoading } = useTasks();
+  const { tasks, createTask, assignTask } = useTasks();
   const { requests, approveRequest, rejectRequest } = useRequests();
   const { t } = useLanguage();
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [userFilter, setUserFilter] = useState<UserFilter>('staff');
+  const [taskTab, setTaskTab] = useState<TaskTab>('tasks');
   
-  // Data Pelanggan State
   const [customers, setCustomers] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<any[]>([]);
 
-  // Modals state
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+  const [editCustomerData, setEditCustomerData] = useState<any>(null);
+  
   const [selectedTaskForAssignment, setSelectedTaskForAssignment] = useState<string | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState<string[]>([]);
 
-  // Form states
   const [newUserReg, setNewUserReg] = useState({
     name: '',
     email: '',
@@ -82,7 +85,6 @@ export default function AdminDashboard() {
     assignedTo: ''
   });
 
-  // Fetch data pelanggan dari Firestore
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'tb_pelanggan'), (snapshot) => {
       setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -90,14 +92,22 @@ export default function AdminDashboard() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'pengaduan'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      data.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      setComplaints(data);
+    });
+    return () => unsub();
+  }, []);
+
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showNotification(t('admin.user.copy_code'));
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -129,9 +139,8 @@ export default function AdminDashboard() {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    
     createTask({
-      title: '', // Generated in UI
+      title: '',
       type: newTaskForm.type,
       location: newTaskForm.location,
       district: newTaskForm.district,
@@ -140,17 +149,58 @@ export default function AdminDashboard() {
       assignedTo: newTaskForm.assignedTo || undefined,
       deadline: 'CYCLE'
     });
-    
     showNotification(t('admin.tasks.success'), 'success');
     setIsAddingTask(false);
-    setNewTaskForm({
-      type: 'repair',
-      location: '',
-      district: '',
-      priority: 'normal',
-      reason: '',
-      assignedTo: ''
-    });
+    setNewTaskForm({ type: 'repair', location: '', district: '', priority: 'normal', reason: '', assignedTo: '' });
+  };
+
+  const handleEditClick = (customer: any) => {
+    setEditCustomerData(customer);
+    setIsEditingCustomer(true);
+  };
+
+  const submitEditCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCustomerData) return;
+    try {
+      const docRef = doc(db, 'tb_pelanggan', editCustomerData.id);
+      await updateDoc(docRef, {
+        nama: editCustomerData.nama || '',
+        noHp: editCustomerData.noHp || '',
+        alamat: editCustomerData.alamat || '',
+        no_meter: editCustomerData.no_meter || ''
+      });
+      showNotification('Data pelanggan berhasil diupdate', 'success');
+      setIsEditingCustomer(false);
+    } catch (error) {
+      showNotification('Gagal mengupdate data', 'error');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name: string) => {
+    if (window.confirm(`Yakin ingin menghapus data pelanggan ${name}?`)) {
+      try {
+        await deleteDoc(doc(db, 'tb_pelanggan', id));
+        showNotification('Pelanggan berhasil dihapus', 'success');
+      } catch (error) {
+        showNotification('Gagal menghapus pelanggan', 'error');
+      }
+    }
+  };
+
+  const handleResetPassword = async (email: string) => {
+    if (!email) {
+      showNotification('Email / Username pelanggan tidak ditemukan', 'error');
+      return;
+    }
+    if (window.confirm(`Kirim link reset password ke email: ${email}?`)) {
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showNotification('Link reset password telah dikirim ke email', 'success');
+      } catch (error) {
+        showNotification('Gagal mengirim link reset password', 'error');
+      }
+    }
   };
 
   const stats = [
@@ -254,7 +304,6 @@ export default function AdminDashboard() {
       );
     }
     
-    
     if (activeView === 'users') {
       return (
         <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
@@ -314,7 +363,6 @@ export default function AdminDashboard() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {userFilter === 'customer' ? (
-                // View untuk Pelanggan (Dari tb_pelanggan Firestore)
                 customers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
@@ -361,13 +409,13 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                          <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95" title="Edit">
+                          <button onClick={() => handleEditClick(c)} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95" title="Edit">
                             <Edit size={18} />
                           </button>
-                          <button className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all active:scale-95" title="Hapus/Ban">
+                          <button onClick={() => handleDeleteCustomer(c.id, c.nama || 'Pelanggan')} className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all active:scale-95" title="Hapus">
                             <Ban size={18} />
                           </button>
-                          <button className="p-2.5 rounded-xl hover:bg-amber-50 text-slate-400 hover:text-amber-500 transition-all active:scale-95" title="Reset Password">
+                          <button onClick={() => handleResetPassword(c.username || c.email)} className="p-2.5 rounded-xl hover:bg-amber-50 text-slate-400 hover:text-amber-500 transition-all active:scale-95" title="Kirim Link Reset Password">
                             <Undo size={18} />
                           </button>
                         </div>
@@ -376,7 +424,6 @@ export default function AdminDashboard() {
                   ))
                 )
               ) : (
-                // View untuk Staff (Dari allUsers Context)
                 allUsers.filter((u: User) => u.role === 'staff').length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
@@ -466,171 +513,283 @@ export default function AdminDashboard() {
               <h2 className="text-2xl font-headline font-bold text-slate-800">{t('admin.tasks.management')}</h2>
               <p className="text-sm text-slate-500 font-medium">{t('admin.tasks.management_sub')}</p>
             </div>
-            <button 
-              onClick={() => setIsAddingTask(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-            >
-              <Plus size={20} />
-              {t('admin.tasks.add')}
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2 bg-slate-100 rounded-2xl p-1">
+                <button
+                  onClick={() => setTaskTab('tasks')}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    taskTab === 'tasks' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Perintah Kerja
+                </button>
+                <button
+                  onClick={() => setTaskTab('complaints')}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                    taskTab === 'complaints' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Pengaduan Masuk
+                  {complaints.filter(c => c.status === 'Menunggu Respon').length > 0 && (
+                    <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px]">
+                      {complaints.filter(c => c.status === 'Menunggu Respon').length}
+                    </span>
+                  )}
+                </button>
+              </div>
+              <button 
+                onClick={() => setIsAddingTask(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+              >
+                <Plus size={20} />
+                {t('admin.tasks.add')}
+              </button>
+            </div>
           </div>
 
-          {/* Stats Bar */}
-          <div className="grid grid-cols-4 gap-4">
-             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.tasks.status.pending')}</p>
-                <h4 className="text-2xl font-headline font-bold text-slate-800">{tasks.filter(t => t.status === 'pending').length}</h4>
-             </div>
-             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-blue-500">
-                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t('admin.tasks.status.assigned')}</p>
-                <h4 className="text-2xl font-headline font-bold text-slate-800">{tasks.filter(t => t.status === 'assigned').length}</h4>
-             </div>
-             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-emerald-500">
-                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{t('admin.tasks.status.completed')}</p>
-                <h4 className="text-2xl font-headline font-bold text-slate-800">{tasks.filter(t => t.status === 'completed').length}</h4>
-             </div>
-             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-red-500">
-                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t('admin.tasks.priority.high').toUpperCase()}</p>
-                <h4 className="text-2xl font-headline font-bold text-red-600">{tasks.filter(t => t.priority === 'high' && t.status !== 'completed').length}</h4>
-             </div>
-          </div>
+          {taskTab === 'tasks' ? (
+            <>
+              <div className="grid grid-cols-4 gap-4">
+                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.tasks.status.pending')}</p>
+                    <h4 className="text-2xl font-headline font-bold text-slate-800">{tasks.filter(t => t.status === 'pending').length}</h4>
+                 </div>
+                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-blue-500">
+                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t('admin.tasks.status.assigned')}</p>
+                    <h4 className="text-2xl font-headline font-bold text-slate-800">{tasks.filter(t => t.status === 'assigned').length}</h4>
+                 </div>
+                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-emerald-500">
+                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{t('admin.tasks.status.completed')}</p>
+                    <h4 className="text-2xl font-headline font-bold text-slate-800">{tasks.filter(t => t.status === 'completed').length}</h4>
+                 </div>
+                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-red-500">
+                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t('admin.tasks.priority.high').toUpperCase()}</p>
+                    <h4 className="text-2xl font-headline font-bold text-red-600">{tasks.filter(t => t.priority === 'high' && t.status !== 'completed').length}</h4>
+                 </div>
+              </div>
 
-          <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-             <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                   <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      <th className="px-8 py-4">{t('admin.tasks.table.details')}</th>
-                      <th className="px-8 py-4">{t('admin.tasks.table.reason')}</th>
-                      <th className="px-8 py-4">{t('admin.tasks.table.assignee')}</th>
-                      <th className="px-8 py-4">{t('admin.tasks.table.status')}</th>
-                      <th className="px-8 py-4 text-right">{t('admin.tasks.table.actions')}</th>
-                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                   {tasks.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
-                          {t('admin.tasks.empty')}
-                        </td>
-                      </tr>
-                   ) : (
-                     tasks.map(task => (
-                        <tr key={task.id} className="hover:bg-slate-50/50 transition-colors">
-                           <td className="px-8 py-5">
-                              <div className="flex items-center gap-3">
-                                 <div className={`p-2.5 rounded-xl ${
-                                    task.type === 'repair' ? 'bg-red-50 text-red-500' : 
-                                    task.type === 'reading' ? 'bg-blue-50 text-blue-500' : 
-                                    task.type === 'new_connection' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'
-                                 }`}>
-                                    {task.type === 'repair' ? <Wrench size={18} /> : 
-                                     task.type === 'reading' ? <TrendingUp size={18} /> : 
-                                     task.type === 'new_connection' ? <Plus size={18} /> : <Scissors size={18} />}
-                                 </div>
-                                 <div>
-                                    <p className="font-bold text-slate-800 text-sm">
-                                      {task.type === 'reading' && t('admin.tasks.type.reading')}
-                                      {task.type === 'new_connection' && t('admin.tasks.type.new_connection')}
-                                      {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
-                                      {task.type === 'repair' && `${t('admin.tasks.type.repair_prefix')} ${task.reason}`}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase">{task.location}</p>
-                                 </div>
-                              </div>
-                           </td>
-                           <td className="px-8 py-5">
-                              <div className="flex flex-col gap-1">
-                                 <span className={`text-[10px] font-bold w-fit px-2 py-0.5 rounded ${
-                                    task.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                                 }`}>
-                                    {t(`admin.tasks.priority.${task.priority}`).toUpperCase()}
-                                 </span>
-                                 <p className="text-xs text-slate-500 font-medium italic">{task.reason || t('admin.tasks.routine')}</p>
-                              </div>
-                           </td>
-                           <td className="px-8 py-5">
-                              {task.assignedTo ? (
-                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">
-                                       {allUsers.find(u => u.id === task.assignedTo)?.name.substring(0, 1)}
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-700">{allUsers.find(u => u.id === task.assignedTo)?.name || t('admin.tasks.unknown_staff')}</span>
-                                 </div>
-                              ) : (
-                                 <span className="text-xs text-amber-600 font-bold flex items-center gap-1">
-                                    <Clock size={14} /> {t('admin.tasks.unassigned_tag')}
-                                 </span>
-                              )}
-                           </td>
-                           <td className="px-8 py-5">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                 task.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
-                                 task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                 {t(`admin.tasks.status.${task.status}`).toUpperCase()}
-                              </span>
-                           </td>
-                           <td className="px-8 py-5 text-right">
-                              {task.status !== 'completed' && (
-                                 <div className="relative inline-block text-left">
-                                    <button 
-                                      onClick={() => setSelectedTaskForAssignment(selectedTaskForAssignment === task.id ? null : task.id)}
-                                      className="p-2 hover:bg-slate-100 rounded-xl transition-all text-primary font-bold text-xs flex items-center gap-2 group"
-                                    >
-                                       {task.assignedTo ? t('admin.tasks.change_staff') : t('admin.tasks.assign_staff')}
-                                       <Edit size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                                    </button>
-
-                                    <AnimatePresence>
-                                      {selectedTaskForAssignment === task.id && (
-                                        <motion.div 
-                                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                          className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden"
+              <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                 <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                       <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          <th className="px-8 py-4">{t('admin.tasks.table.details')}</th>
+                          <th className="px-8 py-4">{t('admin.tasks.table.reason')}</th>
+                          <th className="px-8 py-4">{t('admin.tasks.table.assignee')}</th>
+                          <th className="px-8 py-4">{t('admin.tasks.table.status')}</th>
+                          <th className="px-8 py-4 text-right">{t('admin.tasks.table.actions')}</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                       {tasks.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
+                              {t('admin.tasks.empty')}
+                            </td>
+                          </tr>
+                       ) : (
+                         tasks.map(task => (
+                            <tr key={task.id} className="hover:bg-slate-50/50 transition-colors">
+                               <td className="px-8 py-5">
+                                  <div className="flex items-center gap-3">
+                                     <div className={`p-2.5 rounded-xl ${
+                                        task.type === 'repair' ? 'bg-red-50 text-red-500' : 
+                                        task.type === 'reading' ? 'bg-blue-50 text-blue-500' : 
+                                        task.type === 'new_connection' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'
+                                     }`}>
+                                        {task.type === 'repair' ? <Wrench size={18} /> : 
+                                         task.type === 'reading' ? <TrendingUp size={18} /> : 
+                                         task.type === 'new_connection' ? <Plus size={18} /> : <Scissors size={18} />}
+                                     </div>
+                                     <div>
+                                        <p className="font-bold text-slate-800 text-sm">
+                                          {task.type === 'reading' && t('admin.tasks.type.reading')}
+                                          {task.type === 'new_connection' && t('admin.tasks.type.new_connection')}
+                                          {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
+                                          {task.type === 'repair' && `${t('admin.tasks.type.repair_prefix')} ${task.reason}`}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.location}</p>
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="px-8 py-5">
+                                  <div className="flex flex-col gap-1">
+                                     <span className={`text-[10px] font-bold w-fit px-2 py-0.5 rounded ${
+                                        task.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                                     }`}>
+                                        {t(`admin.tasks.priority.${task.priority}`).toUpperCase()}
+                                     </span>
+                                     <p className="text-xs text-slate-500 font-medium italic">{task.reason || t('admin.tasks.routine')}</p>
+                                  </div>
+                               </td>
+                               <td className="px-8 py-5">
+                                  {task.assignedTo ? (
+                                     <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">
+                                           {allUsers.find(u => u.id === task.assignedTo)?.name.substring(0, 1)}
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-700">{allUsers.find(u => u.id === task.assignedTo)?.name || t('admin.tasks.unknown_staff')}</span>
+                                     </div>
+                                  ) : (
+                                     <span className="text-xs text-amber-600 font-bold flex items-center gap-1">
+                                        <Clock size={14} /> {t('admin.tasks.unassigned_tag')}
+                                     </span>
+                                  )}
+                               </td>
+                               <td className="px-8 py-5">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                     task.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
+                                     task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                     {t(`admin.tasks.status.${task.status}`).toUpperCase()}
+                                  </span>
+                               </td>
+                               <td className="px-8 py-5 text-right">
+                                  {task.status !== 'completed' && (
+                                     <div className="relative inline-block text-left">
+                                        <button 
+                                          onClick={() => setSelectedTaskForAssignment(selectedTaskForAssignment === task.id ? null : task.id)}
+                                          className="p-2 hover:bg-slate-100 rounded-xl transition-all text-primary font-bold text-xs flex items-center gap-2 group"
                                         >
-                                          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.tasks.available_staff')}</div>
-                                          <div className="max-h-48 overflow-y-auto">
-                                            {allUsers.filter(u => u.role === 'staff' && u.status === 'active').map(staff => (
-                                              <button 
-                                                key={staff.id}
-                                                onClick={() => {
-                                                  assignTask(task.id, staff.id);
-                                                  setSelectedTaskForAssignment(null);
-                                                  showNotification(`${t('admin.user.msg.assigned')} ${staff.name}`, 'success');
-                                                }}
-                                                className="w-full px-4 py-3 text-left hover:bg-primary/5 flex items-center gap-3 transition-colors"
-                                              >
-                                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
-                                                  {staff.name.substring(0, 2).toUpperCase()}
-                                                </div>
-                                                <div className="flex-1">
-                                                  <p className="text-xs font-bold text-slate-700">{staff.name}</p>
-                                                  <p className="text-[10px] text-slate-400">{staff.phone}</p>
-                                                </div>
-                                                {task.assignedTo === staff.id && <Check size={14} className="text-primary" />}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                 </div>
-                              )}
+                                           {task.assignedTo ? t('admin.tasks.change_staff') : t('admin.tasks.assign_staff')}
+                                           <Edit size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                                        </button>
+
+                                        <AnimatePresence>
+                                          {selectedTaskForAssignment === task.id && (
+                                            <motion.div 
+                                              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                                              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                              className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden"
+                                            >
+                                              <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.tasks.available_staff')}</div>
+                                              <div className="max-h-48 overflow-y-auto">
+                                                {allUsers.filter(u => u.role === 'staff' && u.status === 'active').map(staff => (
+                                                  <button 
+                                                    key={staff.id}
+                                                    onClick={() => {
+                                                      assignTask(task.id, staff.id);
+                                                      setSelectedTaskForAssignment(null);
+                                                      showNotification(`${t('admin.user.msg.assigned')} ${staff.name}`, 'success');
+                                                    }}
+                                                    className="w-full px-4 py-3 text-left hover:bg-primary/5 flex items-center gap-3 transition-colors"
+                                                  >
+                                                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                                                      {staff.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                      <p className="text-xs font-bold text-slate-700">{staff.name}</p>
+                                                      <p className="text-[10px] text-slate-400">{staff.phone}</p>
+                                                    </div>
+                                                    {task.assignedTo === staff.id && <Check size={14} className="text-primary" />}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </motion.div>
+                                          )}
+                                        </AnimatePresence>
+                                     </div>
+                                  )}
+                               </td>
+                            </tr>
+                         ))
+                       )}
+                    </tbody>
+                 </table>
+              </div>
+            </>
+          ) : (
+             <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full text-left">
+                   <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                         <th className="px-8 py-4">PELAPOR</th>
+                         <th className="px-8 py-4">KATEGORI & LAPORAN</th>
+                         <th className="px-8 py-4">LAMPIRAN</th>
+                         <th className="px-8 py-4">STATUS</th>
+                         <th className="px-8 py-4 text-right">AKSI</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {complaints.length === 0 ? (
+                         <tr>
+                           <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
+                             Belum ada pengaduan
                            </td>
-                        </tr>
-                     ))
-                   )}
-                </tbody>
-             </table>
-          </div>
+                         </tr>
+                      ) : (
+                        complaints.map(complaint => (
+                           <tr key={complaint.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-8 py-5">
+                                 <p className="font-bold text-slate-800 text-sm">{complaint.userName || 'Tanpa Nama'}</p>
+                                 <p className="text-[10px] text-slate-400 font-bold uppercase">{complaint.userNoMeter ? `Meter: ${complaint.userNoMeter}` : 'Tanpa No Meter'}</p>
+                                 <p className="text-xs text-slate-500 mt-1 max-w-[150px] truncate">{complaint.userAlamat}</p>
+                              </td>
+                              <td className="px-8 py-5">
+                                 <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold w-fit px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                                       {complaint.category}
+                                    </span>
+                                    <p className="text-xs text-slate-500 font-medium italic max-w-xs">{complaint.description}</p>
+                                 </div>
+                              </td>
+                              <td className="px-8 py-5">
+                                 {complaint.imageUrl ? (
+                                    <a href={complaint.imageUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-primary hover:underline text-xs font-bold">
+                                       <Camera size={14} /> Lihat Foto
+                                    </a>
+                                 ) : (
+                                    <span className="text-xs text-slate-400">-</span>
+                                 )}
+                              </td>
+                              <td className="px-8 py-5">
+                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    complaint.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' : 
+                                    complaint.status === 'Diproses' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                                 }`}>
+                                    {complaint.status?.toUpperCase() || 'MENUNGGU RESPON'}
+                                 </span>
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                 <div className="flex justify-end gap-2">
+                                    {complaint.status !== 'Selesai' && (
+                                       <button 
+                                         onClick={async () => {
+                                           const newStatus = complaint.status === 'Menunggu Respon' ? 'Diproses' : 'Selesai';
+                                           await updateDoc(doc(db, 'pengaduan', complaint.id), { status: newStatus });
+                                           showNotification('Status berhasil diupdate', 'success');
+                                         }}
+                                         className="px-3 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-xs font-bold transition-all"
+                                       >
+                                         Tandai {complaint.status === 'Menunggu Respon' ? 'Diproses' : 'Selesai'}
+                                       </button>
+                                    )}
+                                    <button 
+                                      onClick={async () => {
+                                        if (window.confirm('Hapus pengaduan ini?')) {
+                                          await deleteDoc(doc(db, 'pengaduan', complaint.id));
+                                          showNotification('Pengaduan dihapus', 'success');
+                                        }
+                                      }}
+                                      className="p-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                 </div>
+                              </td>
+                           </tr>
+                        ))
+                      )}
+                   </tbody>
+                </table>
+             </div>
+          )}
         </section>
       );
     }
 
     return (
       <div className="space-y-8">
-        {/* Stats Grid */}
         <section className="grid grid-cols-3 gap-6">
           {stats.map((stat, i) => (
             <motion.div 
@@ -661,7 +820,6 @@ export default function AdminDashboard() {
           ))}
         </section>
 
-        {/* Dashboard Actions Bar */}
         <section className="flex gap-4">
            <button 
              onClick={() => setActiveView('users')}
@@ -700,7 +858,6 @@ export default function AdminDashboard() {
            </button>
         </section>
 
-        {/* Activity Log */}
         <section className="bg-slate-900 rounded-[3.5rem] p-10 text-white border-l-[10px] border-primary relative overflow-hidden">
           <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary/10 rounded-full blur-[80px]" />
           <div className="flex items-center gap-3 mb-8">
@@ -738,7 +895,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      {/* Sidebar */}
       <aside className="w-72 bg-white border-r border-slate-100 flex flex-col py-10 px-6 fixed h-full z-50">
         <div className="mb-12 px-4">
           <div className="flex items-center gap-3 mb-2">
@@ -838,9 +994,7 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 ml-72 min-h-screen relative">
-        {/* Top Navbar */}
         <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-10 sticky top-0 z-40">
           <div className="flex items-center gap-4">
              <div className="relative group">
@@ -891,7 +1045,6 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* View Content */}
         <div className="p-10">
           <AnimatePresence mode="wait">
              <motion.div
@@ -906,7 +1059,6 @@ export default function AdminDashboard() {
           </AnimatePresence>
         </div>
 
-        {/* Global Notifications */}
         <AnimatePresence>
           {notification && (
             <motion.div
@@ -924,7 +1076,6 @@ export default function AdminDashboard() {
           )}
         </AnimatePresence>
 
-        {/* Add User Modal */}
         <AnimatePresence>
           {isAddingUser && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
@@ -990,7 +1141,55 @@ export default function AdminDashboard() {
           )}
         </AnimatePresence>
 
-        {/* Add Work Order Modal */}
+        <AnimatePresence>
+          {isEditingCustomer && editCustomerData && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsEditingCustomer(false)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden relative z-10 border border-slate-100"
+              >
+                <div className="p-10 pb-6 flex justify-between items-center bg-slate-50/50 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-2xl font-headline font-bold text-slate-800">Edit Pelanggan</h3>
+                    <p className="text-sm text-slate-500 font-medium">Update data profil dan meteran</p>
+                  </div>
+                  <button onClick={() => setIsEditingCustomer(false)} className="p-3 hover:bg-slate-200 rounded-full transition-all text-slate-400"><X size={24} /></button>
+                </div>
+                <form onSubmit={submitEditCustomer} className="p-10 space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 ml-1">Nama Lengkap</label>
+                    <input type="text" required value={editCustomerData.nama || ''} onChange={e => setEditCustomerData({...editCustomerData, nama: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500 ml-1">No HP</label>
+                      <input type="tel" required value={editCustomerData.noHp || ''} onChange={e => setEditCustomerData({...editCustomerData, noHp: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500 ml-1">No Meter</label>
+                      <input type="text" value={editCustomerData.no_meter || ''} onChange={e => setEditCustomerData({...editCustomerData, no_meter: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Belum ada" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 ml-1">Alamat</label>
+                    <textarea required value={editCustomerData.alamat || ''} onChange={e => setEditCustomerData({...editCustomerData, alamat: e.target.value})} rows={2} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"></textarea>
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <button type="button" onClick={() => setIsEditingCustomer(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all uppercase tracking-wider text-xs">Batal</button>
+                    <button type="submit" className="flex-[2] py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]">Simpan</button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
            {isAddingTask && (
              <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
