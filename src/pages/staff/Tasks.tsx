@@ -22,6 +22,7 @@ import { useAuth } from '../../authContext';
 import { useTasks } from '../../taskContext';
 import { useLanguage } from '../../languageContext';
 import LanguageToggle from '../../components/LanguageToggle';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 type Tab = 'repair' | 'reading' | 'disconnection';
@@ -33,7 +34,7 @@ export default function StaffDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('repair');
 
-  // Filter tasks assigned to this specific staff member
+  // Filter tugas khusus untuk staff yang sedang login
   const myTasks = tasks.filter(t => t.assignedTo === user?.id);
   
   const activeTasks = myTasks.filter(t => {
@@ -48,16 +49,57 @@ export default function StaffDashboard() {
     disconnections: myTasks.filter(t => t.type === 'disconnection' && t.status !== 'completed').length
   };
 
+  // FUNGSI 1: Memulai Pekerjaan
+  const handleStartTask = async (task: any) => {
+    try {
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        status: 'in-progress' // Mengubah status menjadi sedang dikerjakan
+      });
+      alert('Pekerjaan dimulai! Silakan kerjakan tugas sesuai SOP.');
+    } catch (error) {
+      console.error(error);
+      alert('Gagal memulai pekerjaan');
+    }
+  };
+
+  // FUNGSI 2: Menyelesaikan Pekerjaan
+  const handleCompleteTask = async (task: any) => {
+    const confirmComplete = window.confirm('Apakah Anda yakin sudah menyelesaikan pekerjaan ini sepenuhnya?');
+    if (confirmComplete) {
+      try {
+        // Update status perintah kerja jadi selesai
+        const taskRef = doc(db, 'tasks', task.id);
+        await updateDoc(taskRef, {
+          status: 'completed',
+          completedAt: new Date().toISOString()
+        });
+        
+        // Update status pengaduan jadi selesai (jika tugas ini berasal dari pengaduan)
+        if (task.pengaduanId) {
+          const pengaduanRef = doc(db, 'pengaduan', task.pengaduanId);
+          await updateDoc(pengaduanRef, {
+            status: 'Selesai'
+          });
+        }
+        
+        alert('Kerja bagus! Tugas berhasil diselesaikan.');
+      } catch (error) {
+        console.error(error);
+        alert('Gagal menyelesaikan tugas');
+      }
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto min-h-screen bg-surface pb-12">
-      {/* Header */}
       <header className="flex justify-between items-center px-6 h-16 sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/staff')}
             className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all shadow-sm"
           >
-            <img src={user?.avatar} alt="Staff" className="w-full h-full object-cover" />
+            <img src={user?.avatar || "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&h=100&fit=crop"} alt="Staff" className="w-full h-full object-cover" />
           </button>
           <span className="text-lg font-headline font-bold text-primary tracking-tight">{t('app.name')}</span>
         </div>
@@ -72,7 +114,6 @@ export default function StaffDashboard() {
       </header>
 
       <main className="px-6 py-6 space-y-8">
-        {/* Daily Quota Card */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -89,7 +130,6 @@ export default function StaffDashboard() {
           </div>
         </motion.section>
 
-        {/* Quick Stats Grid */}
         <section className="grid grid-cols-3 gap-3">
           <div onClick={() => setActiveTab('reading')} className={`p-4 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === 'reading' ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-slate-100 hover:bg-slate-200'}`}>
             <Droplets size={20} className="text-primary mb-2" />
@@ -108,7 +148,6 @@ export default function StaffDashboard() {
           </div>
         </section>
 
-        {/* Task Tabs */}
         <nav className="flex p-1.5 bg-slate-200/50 rounded-full">
           {(['repair', 'reading', 'disconnection'] as const).map(tab => (
             <button 
@@ -123,11 +162,10 @@ export default function StaffDashboard() {
           ))}
         </nav>
 
-        {/* Task List */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-headline font-bold">
-              {activeTab === 'repair' ? t('staff.tasks.queue.repair') : activeTab === 'reading' ? t('staff.tasks.queue.reading') : t('staff.tasks.queue.disconnection')}
+              Antrean {activeTab === 'repair' ? 'Perbaikan' : activeTab === 'reading' ? 'Pencatatan' : 'Pemutusan'}
             </h3>
             <span className="text-xs font-bold text-slate-400">{activeTasks.length} {t('staff.tasks.work_orders')}</span>
           </div>
@@ -146,7 +184,7 @@ export default function StaffDashboard() {
 
               {activeTasks.length === 0 ? (
                 <div className="py-8 text-center text-slate-400 italic text-sm">
-                   {activeTab === 'reading' ? t('staff.tasks.empty.reading') : t('staff.tasks.empty.generic')}
+                   Belum ada tugas di kategori ini
                 </div>
               ) : (
                 activeTasks.map((task, i) => (
@@ -156,22 +194,26 @@ export default function StaffDashboard() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ delay: i * 0.1 }}
-                    className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 space-y-4"
+                    className={`bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4 ${task.status === 'completed' ? 'border-emerald-100 opacity-70' : task.status === 'in-progress' ? 'border-primary ring-2 ring-primary/20' : 'border-slate-50'}`}
                   >
                     <div className="flex justify-between items-start">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        task.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                        task.status === 'in-progress' ? 'bg-primary/10 text-primary' :
                         task.priority === 'high' ? 'bg-error/10 text-error' : 'bg-slate-100 text-slate-500'
                       }`}>
-                        {t(`admin.tasks.priority.${task.priority}`).toUpperCase()}
+                        {task.status === 'completed' ? 'SELESAI' : 
+                         task.status === 'in-progress' ? 'DIPROSES STAFF' : 
+                         task.priority === 'high' ? 'PRIORITAS TINGGI' : 'NORMAL'}
                       </span>
-                      <span className="text-[10px] font-bold text-slate-400">{t('staff.tasks.id')}: {task.id}</span>
+                      <span className="text-[10px] font-bold text-slate-400">Nomor ID: {task.id}</span>
                     </div>
 
                     <div>
                       <h4 className="text-lg font-headline font-bold">
                         {task.type === 'reading' && t('admin.tasks.type.reading')}
                         {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
-                        {task.type === 'repair' && `${t('admin.tasks.type.repair_prefix')} ${task.reason}`}
+                        {task.type === 'repair' && `Perbaikan: ${task.reason?.split('-')[0] || 'Laporan Masuk'}`}
                       </h4>
                       <p className="text-sm text-slate-500">{task.district} • {task.location}</p>
                       {task.reason && (
@@ -184,36 +226,53 @@ export default function StaffDashboard() {
                     <div className="flex items-center gap-6 py-4 border-y border-slate-50">
                       <div className="flex items-center gap-2">
                         <Calendar size={16} className="text-primary" />
-                        <span className="text-xs font-bold">{t('staff.tasks.cycle.planned')}</span>
+                        <span className="text-xs font-bold">Siklus Terjadwal</span>
                       </div>
                       {task.deadline && (
                         <div className="flex items-center gap-2">
                           <Clock size={16} className="text-primary" />
-                          <span className="text-xs font-bold uppercase">
-                            {t('staff.tasks.deadline.by').toUpperCase()} {' '}
-                            {task.deadline === 'URGENT' ? t('admin.tasks.deadline.urgent') : 
-                             task.deadline === 'CYCLE' ? t('admin.tasks.deadline.cycle') : task.deadline}
+                          <span className="text-[10px] font-bold uppercase leading-tight">
+                            SELESAIKAN SEBELUM DEADLINE<br/>
+                            {task.deadline === 'URGENT' ? '24 JAM' : task.deadline === 'CYCLE' ? 'AKHIR BULAN' : task.deadline}
                           </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => {
-                           if (task.type === 'reading') navigate(`/staff/meter-reading?taskId=${task.id}`);
-                           if (task.type === 'disconnection') navigate(`/staff/disconnection/${task.id}`);
-                        }}
-                        className={`flex-1 text-white py-4 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all ${
-                           task.type === 'disconnection' ? 'bg-amber-500 shadow-amber-500/20' : 'bg-primary shadow-primary/20'
-                        }`}
-                      >
-                        {t('staff.tasks.button.start')} {task.type === 'disconnection' ? t('staff.tabs.disconnection') : task.type === 'repair' ? t('staff.tabs.repair') : t('staff.tabs.reading')}
-                      </button>
-                      <button className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 active:scale-95 transition-all">
-                        <MoreHorizontal size={24} />
-                      </button>
-                    </div>
+                    {/* AREA TOMBOL AKSI */}
+                    {task.status !== 'completed' && (
+                      <div className="flex gap-3">
+                        {task.status === 'in-progress' ? (
+                           <button 
+                             onClick={() => handleCompleteTask(task)}
+                             className="flex-1 bg-emerald-500 text-white py-4 rounded-full font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                           >
+                             <CheckCircle2 size={20} />
+                             Selesaikan Pekerjaan
+                           </button>
+                        ) : (
+                           <button 
+                             onClick={() => {
+                                if (task.type === 'reading') navigate(`/staff/meter-reading?taskId=${task.id}`);
+                                else if (task.type === 'disconnection') navigate(`/staff/disconnection/${task.id}`);
+                                else handleStartTask(task);
+                             }}
+                             className={`flex-1 text-white py-4 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all ${
+                                task.type === 'disconnection' ? 'bg-amber-500 shadow-amber-500/20' : 'bg-primary shadow-primary/20'
+                             }`}
+                           >
+                             Mulai Pekerjaan {task.type === 'disconnection' ? 'Pemutusan' : task.type === 'repair' ? 'Perbaikan' : 'Pencatatan'}
+                           </button>
+                        )}
+                        
+                        {/* Tombol Tiga Titik hanya muncul jika belum dikerjakan */}
+                        {task.status !== 'in-progress' && (
+                          <button className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 active:scale-95 transition-all">
+                            <MoreHorizontal size={24} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </motion.article>
                 ))
               )}
@@ -221,7 +280,6 @@ export default function StaffDashboard() {
           </AnimatePresence>
         </section>
 
-        {/* Protocol Card */}
         <section className="bg-white p-6 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors border border-slate-50">
           <div className="flex items-center gap-4">
              <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">

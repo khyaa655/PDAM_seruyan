@@ -79,6 +79,7 @@ export default function AdminDashboard() {
     password: '',
     role: 'staff' as UserRole
   });
+  
   const [newTaskForm, setNewTaskForm] = useState({
     type: 'repair' as 'repair' | 'reading' | 'disconnection' | 'new_connection',
     location: '',
@@ -140,21 +141,33 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  // FITUR MEMBUAT PERINTAH KERJA MANUAL
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    createTask({
-      title: '',
-      type: newTaskForm.type,
-      location: newTaskForm.location,
-      district: newTaskForm.district,
-      priority: newTaskForm.priority,
-      reason: newTaskForm.reason,
-      assignedTo: newTaskForm.assignedTo || undefined,
-      deadline: 'CYCLE'
-    });
-    showNotification(t('admin.tasks.success'), 'success');
-    setIsAddingTask(false);
-    setNewTaskForm({ type: 'repair', location: '', district: '', priority: 'normal', reason: '', assignedTo: '' });
+    try {
+      let taskTitle = 'Perintah Kerja';
+      if (newTaskForm.type === 'repair') taskTitle = 'Perbaikan';
+      if (newTaskForm.type === 'reading') taskTitle = 'Pencatatan Meter';
+      if (newTaskForm.type === 'disconnection') taskTitle = 'Pemutusan';
+      if (newTaskForm.type === 'new_connection') taskTitle = 'Sambungan Baru';
+
+      await createTask({
+        title: taskTitle,
+        type: newTaskForm.type,
+        location: newTaskForm.location,
+        district: newTaskForm.district,
+        priority: newTaskForm.priority,
+        reason: newTaskForm.reason,
+        assignedTo: newTaskForm.assignedTo || undefined,
+        deadline: 'CYCLE'
+      });
+      
+      showNotification('Perintah Kerja berhasil ditambahkan', 'success');
+      setIsAddingTask(false);
+      setNewTaskForm({ type: 'repair', location: '', district: '', priority: 'normal', reason: '', assignedTo: '' });
+    } catch (error) {
+      showNotification('Gagal menambahkan perintah kerja', 'error');
+    }
   };
 
   const handleEditClick = (customer: any) => {
@@ -212,7 +225,7 @@ export default function AdminDashboard() {
     
     try {
       // @ts-ignore
-      createTask({
+      await createTask({
         title: `Pengaduan: ${processComplaintData.category}`,
         type: 'repair',
         location: processComplaintData.userAlamat || 'Alamat tidak tersedia',
@@ -635,7 +648,7 @@ export default function AdminDashboard() {
                                           {task.type === 'reading' && t('admin.tasks.type.reading')}
                                           {task.type === 'new_connection' && t('admin.tasks.type.new_connection')}
                                           {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
-                                          {task.type === 'repair' && `${t('admin.tasks.type.repair_prefix')} ${task.reason}`}
+                                          {task.type === 'repair' && `Perbaikan: ${task.reason?.split('-')[0] || ''}`}
                                         </p>
                                         <p className="text-[10px] text-slate-400 font-bold uppercase">{task.location}</p>
                                      </div>
@@ -648,7 +661,7 @@ export default function AdminDashboard() {
                                      }`}>
                                         {t(`admin.tasks.priority.${task.priority}`).toUpperCase()}
                                      </span>
-                                     <p className="text-xs text-slate-500 font-medium italic">{task.reason || t('admin.tasks.routine')}</p>
+                                     <p className="text-xs text-slate-500 font-medium italic truncate max-w-[200px]">{task.reason || t('admin.tasks.routine')}</p>
                                   </div>
                                </td>
                                <td className="px-8 py-5">
@@ -668,9 +681,10 @@ export default function AdminDashboard() {
                                <td className="px-8 py-5">
                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                      task.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
+                                     task.status === 'in-progress' ? 'bg-primary/10 text-primary' :
                                      task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                                   }`}>
-                                     {t(`admin.tasks.status.${task.status}`).toUpperCase()}
+                                     {task.status === 'in-progress' ? 'DIPROSES STAFF' : t(`admin.tasks.status.${task.status}`).toUpperCase()}
                                   </span>
                                </td>
                                <td className="px-8 py-5 text-right">
@@ -1302,7 +1316,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-2 gap-6">
                        <div className="space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 ml-1">{t('admin.tasks.label.staff')}</label>
                           <select 
@@ -1314,6 +1328,18 @@ export default function AdminDashboard() {
                              {allUsers.filter(u => u.role === 'staff' && u.status === 'active').map(u => (
                                <option key={u.id} value={u.id}>{u.name}</option>
                              ))}
+                          </select>
+                       </div>
+                       
+                       <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-500 ml-1">Prioritas</label>
+                          <select 
+                            value={newTaskForm.priority}
+                            onChange={e => setNewTaskForm({...newTaskForm, priority: e.target.value as 'high' | 'normal'})}
+                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
+                          >
+                             <option value="normal">Normal</option>
+                             <option value="high">Tinggi (High)</option>
                           </select>
                        </div>
                     </div>
