@@ -97,15 +97,15 @@ export default function StaffDashboard() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/staff')}
-            className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all shadow-sm"
+            className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 cursor-pointer hover:ring-2 hover:ring-#00478d/20 transition-all shadow-sm"
           >
             <img src={user?.avatar || "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&h=100&fit=crop"} alt="Staff" className="w-full h-full object-cover" />
           </button>
-          <span className="text-lg font-headline font-bold text-primary tracking-tight">{t('app.name')}</span>
+          <span className="text-lg font-headline font-bold text-[#00478d] tracking-tight">{t('app.name')}</span>
         </div>
         <div className="flex items-center gap-4">
           <LanguageToggle />
-          <button className="p-2 text-primary hover:bg-primary/5 rounded-full relative">
+          <button className="p-2 text-[#00478d] hover:bg-[#00478d]/5 rounded-full relative">
             <Bell size={20} />
             {myTasks.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />}
           </button>
@@ -117,7 +117,7 @@ export default function StaffDashboard() {
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-primary to-primary-container rounded-[2.5rem] p-8 text-white shadow-xl shadow-primary/20 relative overflow-hidden"
+          className="bg-gradient-to-br from-[#00478d] to-[#005eb8] rounded-[2.5rem] p-8 text-white shadow-xl shadow-[#00478d]/20 relative overflow-hidden"
         >
           <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-2">{t('staff.stats.daily_target')}</p>
@@ -131,8 +131,8 @@ export default function StaffDashboard() {
         </motion.section>
 
         <section className="grid grid-cols-3 gap-3">
-          <div onClick={() => setActiveTab('reading')} className={`p-4 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === 'reading' ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-slate-100 hover:bg-slate-200'}`}>
-            <Droplets size={20} className="text-primary mb-2" />
+          <div onClick={() => setActiveTab('reading')} className={`p-4 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === 'reading' ? 'bg-[#00478d]/10 ring-1 ring-#00478d/20' : 'bg-slate-100 hover:bg-slate-200'}`}>
+            <Droplets size={20} className="text-[#00478d] mb-2" />
             <span className="text-[9px] font-bold text-slate-500 uppercase">{t('staff.tabs.reading')}</span>
             <span className="text-xl font-headline font-bold text-on-surface">{stats.readings}</span>
           </div>
@@ -154,7 +154,7 @@ export default function StaffDashboard() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 px-2 rounded-full font-bold text-[10px] uppercase tracking-tighter transition-all ${
-                activeTab === tab ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:bg-white/50'
+                activeTab === tab ? 'bg-white shadow-sm text-[#00478d]' : 'text-slate-500 hover:bg-white/50'
               }`}
             >
               {tab === 'disconnection' ? t('staff.tabs.disconnection') : t(`staff.tabs.${tab}`)}
@@ -175,7 +175,7 @@ export default function StaffDashboard() {
               {activeTab === 'reading' && (
                 <button 
                   onClick={() => navigate('/staff/meter-reading')}
-                  className="w-full bg-primary text-white py-5 rounded-[2rem] font-bold text-sm shadow-lg shadow-primary/20 flex items-center justify-center gap-3 active:scale-95 transition-all mb-4"
+                  className="w-full bg-[#00478d] text-white py-5 rounded-[2rem] font-bold text-sm shadow-lg shadow-#00478d/20 flex items-center justify-center gap-3 active:scale-95 transition-all mb-4"
                 >
                   <Gauge size={20} />
                   {t('staff.tasks.manual_reading')}
@@ -194,12 +194,12 @@ export default function StaffDashboard() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ delay: i * 0.1 }}
-                    className={`bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4 ${task.status === 'completed' ? 'border-emerald-100 opacity-70' : task.status === 'in-progress' ? 'border-primary ring-2 ring-primary/20' : 'border-slate-50'}`}
+                    className={`bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4 ${task.status === 'completed' ? 'border-emerald-100 opacity-70' : task.status === 'in-progress' ? 'border-[#00478d] ring-2 ring-#00478d/20' : 'border-slate-50'}`}
                   >
                     <div className="flex justify-between items-start">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
                         task.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
-                        task.status === 'in-progress' ? 'bg-primary/10 text-primary' :
+                        task.status === 'in-progress' ? 'bg-[#00478d]/10 text-[#00478d]' :
                         task.priority === 'high' ? 'bg-error/10 text-error' : 'bg-slate-100 text-slate-500'
                       }`}>
                         {task.status === 'completed' ? 'SELESAI' : 
@@ -225,12 +225,12 @@ export default function StaffDashboard() {
 
                     <div className="flex items-center gap-6 py-4 border-y border-slate-50">
                       <div className="flex items-center gap-2">
-                        <Calendar size={16} className="text-primary" />
+                        <Calendar size={16} className="text-[#00478d]" />
                         <span className="text-xs font-bold">Siklus Terjadwal</span>
                       </div>
                       {task.deadline && (
                         <div className="flex items-center gap-2">
-                          <Clock size={16} className="text-primary" />
+                          <Clock size={16} className="text-[#00478d]" />
                           <span className="text-[10px] font-bold uppercase leading-tight">
                             SELESAIKAN SEBELUM DEADLINE<br/>
                             {task.deadline === 'URGENT' ? '24 JAM' : task.deadline === 'CYCLE' ? 'AKHIR BULAN' : task.deadline}
@@ -258,7 +258,7 @@ export default function StaffDashboard() {
                                 else handleStartTask(task);
                              }}
                              className={`flex-1 text-white py-4 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all ${
-                                task.type === 'disconnection' ? 'bg-amber-500 shadow-amber-500/20' : 'bg-primary shadow-primary/20'
+                                task.type === 'disconnection' ? 'bg-amber-500 shadow-amber-500/20' : 'bg-[#00478d] shadow-#00478d/20'
                              }`}
                            >
                              Mulai Pekerjaan {task.type === 'disconnection' ? 'Pemutusan' : task.type === 'repair' ? 'Perbaikan' : 'Pencatatan'}
@@ -280,9 +280,9 @@ export default function StaffDashboard() {
           </AnimatePresence>
         </section>
 
-        <section className="bg-white p-6 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors border border-slate-50">
+        <section className="bg-white p-6 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:bg-[#00478d]/5 transition-colors border border-slate-50">
           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+             <div className="w-12 h-12 bg-[#00478d]/5 rounded-2xl flex items-center justify-center text-[#00478d] group-hover:bg-[#00478d] group-hover:text-white transition-all">
                 <ClipboardList size={24} />
              </div>
              <div>
@@ -290,7 +290,7 @@ export default function StaffDashboard() {
                <p className="text-[10px] text-slate-500 font-bold">{t('staff.tasks.sop.subtitle')}</p>
              </div>
           </div>
-          <ArrowRight size={20} className="text-primary group-hover:translate-x-1 transition-transform" />
+          <ArrowRight size={20} className="text-[#00478d] group-hover:translate-x-1 transition-transform" />
         </section>
       </main>
     </div>

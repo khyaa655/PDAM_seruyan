@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { formatCurrency } from '../../../lib/utils';
-import { Wallet, Loader2, Plus, X, Search, Filter, Download, UserPlus, History, LayoutDashboard } from 'lucide-react';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
+import { Wallet, Loader2, Plus, X, Search, Filter, Download, UserPlus, History, LayoutDashboard, Trash2 } from 'lucide-react';
+import { useAuth } from '../../../authContext';
 
 export default function HutangAP() {
+  const { user } = useAuth();
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Daftar Vendor');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterType, setFilterType] = useState('Semua');
   const tabs = ["Daftar Vendor", "Riwayat Pembayaran", "Jadwal Hutang"];
 
   const [formData, setFormData] = useState({
@@ -34,19 +38,47 @@ export default function HutangAP() {
       await addDoc(collection(db, 'vendors'), {
         ...formData,
         balance: Number(formData.balance),
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        authorId: user?.id || 'system',
+        authorName: user?.name || 'Unknown'
       });
       setShowAddForm(false);
       setFormData({ name: '', company: '', phone: '', address: '', balance: 0 });
-    } catch (err) {
-      alert('Gagal menambah vendor');
+    } catch (err: any) {
+      alert('Gagal menambah vendor: ' + err.message);
     }
   };
 
-  const filtered = vendors.filter(v => 
-    (v.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (v.company || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus vendor ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'vendors', id));
+    } catch (err: any) {
+      alert('Gagal menghapus vendor: ' + err.message);
+    }
+  };
+
+  const filtered = vendors.filter(v => {
+    const matchSearch = (v.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (v.company || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterType === 'Berhutang') return matchSearch && (v.balance || 0) > 0;
+    if (filterType === 'Lunas') return matchSearch && (v.balance || 0) === 0;
+    
+    return matchSearch;
+  });
+
+  const handleExport = () => {
+    const data = filtered.map(v => ({
+      Perusahaan: v.company,
+      Kontak: v.name,
+      Telepon: v.phone,
+      Alamat: v.address,
+      Saldo_Hutang: v.balance || 0,
+      Status: (v.balance || 0) > 0 ? 'Hutang Aktif' : 'Lunas'
+    }));
+    exportToCSV(data, 'Laporan_Hutang_Vendor');
+  };
 
   if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-blue-600 mb-4" />Memuat Data Hutang...</div>;
 
@@ -135,10 +167,16 @@ export default function HutangAP() {
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white">
-                <Filter size={18} /> Filter
+              <button 
+                onClick={() => setShowFilter(true)}
+                className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${filterType !== 'Semua' ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                <Filter size={18} /> {filterType !== 'Semua' ? `Status: ${filterType}` : 'Filter'}
               </button>
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white">
+              <button 
+                onClick={handleExport}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white shadow-sm"
+              >
                 <Download size={18} /> Export
               </button>
             </div>
@@ -190,9 +228,15 @@ export default function HutangAP() {
                           {(v.balance || 0) > 0 ? 'Hutang Aktif' : 'Lunas'}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right flex justify-end gap-2">
                         <button className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-800">
                           Detail
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(v.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>
@@ -300,6 +344,34 @@ export default function HutangAP() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Filter */}
+      {showFilter && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Filter Status Hutang</h3>
+              <button onClick={() => setShowFilter(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-2">
+                {['Semua', 'Berhutang', 'Lunas'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => { setFilterType(type); setShowFilter(false); }}
+                    className={`w-full p-4 rounded-2xl text-left font-bold transition-all border ${
+                      filterType === type ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

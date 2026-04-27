@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { formatCurrency } from '../../../lib/utils';
-import { HardDrive, Loader2, Plus, X, Search, Filter, Download, Activity, PieChart, LayoutDashboard, Briefcase, Calculator } from 'lucide-react';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
+import { HardDrive, Loader2, Plus, X, Search, Filter, Download, Activity, PieChart, LayoutDashboard, Briefcase, Calculator, Trash2 } from 'lucide-react';
+import { useAuth } from '../../../authContext';
 
 export default function AsetTetap() {
+  const { user } = useAuth();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Daftar Aset');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('Semua');
   const tabs = ["Daftar Aset", "Penyusutan", "Mutasi Aset"];
 
   const [formData, setFormData] = useState({
@@ -39,8 +43,10 @@ export default function AsetTetap() {
         acquisitionCost: Number(formData.acquisitionCost),
         usefulLife: Number(formData.usefulLife),
         residualValue: Number(formData.residualValue),
-        bookValue: Number(formData.acquisitionCost), // Initial book value is cost
-        createdAt: serverTimestamp()
+        bookValue: Number(formData.acquisitionCost),
+        createdAt: serverTimestamp(),
+        authorId: user?.id || 'system',
+        authorName: user?.name || 'Unknown'
       });
       setShowAddForm(false);
       setFormData({ 
@@ -53,15 +59,40 @@ export default function AsetTetap() {
         residualValue: 0,
         condition: 'baik' 
       });
-    } catch (err) {
-      alert('Gagal menambah aset');
+    } catch (err: any) {
+      alert('Gagal menambah aset: ' + err.message);
     }
   };
 
-  const filtered = assets.filter(a => 
-    (a.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (a.category || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus aset ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'assets', id));
+    } catch (err: any) {
+      alert('Gagal menghapus aset: ' + err.message);
+    }
+  };
+
+  const filtered = assets.filter(a => {
+    const matchSearch = (a.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (a.category || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterCategory !== 'Semua') return matchSearch && a.category === filterCategory;
+    
+    return matchSearch;
+  });
+
+  const handleExport = () => {
+    const data = filtered.map(a => ({
+      Nama_Aset: a.name,
+      Kategori: a.category,
+      Tgl_Perolehan: a.acquisitionDate,
+      Harga_Perolehan: a.acquisitionCost,
+      Nilai_Buku: a.bookValue || a.acquisitionCost,
+      Kondisi: a.condition
+    }));
+    exportToCSV(data, 'Daftar_Aset_Tetap');
+  };
 
   if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-blue-600 mb-4" />Memuat Data Aset...</div>;
 
@@ -150,10 +181,16 @@ export default function AsetTetap() {
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white">
-                <Filter size={18} /> Filter
+              <button 
+                onClick={() => setShowFilter(true)}
+                className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${filterCategory !== 'Semua' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                <Filter size={18} /> {filterCategory !== 'Semua' ? `Kat: ${filterCategory}` : 'Filter'}
               </button>
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white">
+              <button 
+                onClick={handleExport}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white"
+              >
                 <Download size={18} /> Export
               </button>
             </div>
@@ -170,6 +207,7 @@ export default function AsetTetap() {
                     <th className="p-4 uppercase tracking-wider text-xs text-right">Harga Perolehan</th>
                     <th className="p-4 uppercase tracking-wider text-xs text-right">Nilai Buku</th>
                     <th className="p-4 uppercase tracking-wider text-xs text-center">Kondisi</th>
+                    <th className="p-4 uppercase tracking-wider text-xs text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -205,6 +243,14 @@ export default function AsetTetap() {
                         }`}>
                           {a.condition?.replace('_', ' ') || 'baik'}
                         </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <button 
+                          onClick={() => handleDelete(a.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -349,6 +395,34 @@ export default function AsetTetap() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Filter */}
+      {showFilter && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Filter Kategori Aset</h3>
+              <button onClick={() => setShowFilter(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-2">
+                {['Semua', 'Peralatan & Mesin', 'Kendaraan', 'Tanah & Bangunan', 'Inventaris Kantor'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => { setFilterCategory(cat); setShowFilter(false); }}
+                    className={`w-full p-4 rounded-2xl text-left font-bold transition-all border ${
+                      filterCategory === cat ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -98,7 +98,7 @@ export default function DisconnectionFlow() {
 
               <button 
                 onClick={() => setStep(2)}
-                className="w-full bg-primary text-white py-5 rounded-full font-bold shadow-lg shadow-primary/20 flex items-center justify-center gap-2 group"
+                className="w-full bg-[#00478d] text-white py-5 rounded-full font-bold shadow-lg shadow-[#00478d]/20 flex items-center justify-center gap-2 group"
               >
                 {t('staff.disconnection.button.continue')} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -156,7 +156,7 @@ export default function DisconnectionFlow() {
               <button 
                 onClick={() => setStep(3)}
                 disabled={!photoUploaded}
-                className="w-full bg-primary text-white py-5 rounded-full font-bold shadow-lg shadow-primary/20 disabled:opacity-50 disabled:shadow-none"
+                className="w-full bg-[#00478d] text-white py-5 rounded-full font-bold shadow-lg shadow-[#00478d]/20 disabled:opacity-50 disabled:shadow-none"
               >
                 {t('staff.disconnection.submit')}
               </button>
@@ -170,7 +170,7 @@ export default function DisconnectionFlow() {
               animate={{ opacity: 1, scale: 1 }}
               className="space-y-8 flex flex-col items-center justify-center py-12"
             >
-              <div className="w-24 h-24 bg-primary/10 text-primary rounded-full flex items-center justify-center relative shadow-inner">
+              <div className="w-24 h-24 bg-[#00478d]/10 text-[#00478d] rounded-full flex items-center justify-center relative shadow-inner">
                 <ShieldCheck size={48} />
                 <motion.div 
                   initial={{ rotate: 0 }}

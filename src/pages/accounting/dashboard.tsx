@@ -4,8 +4,11 @@ import { useAuth } from '../../authContext';
 import {
   LayoutDashboard, LayoutGrid, LayoutPanelLeft, Server, FileText,
   Book, Wallet, Users, HardDrive, Package, PieChart, BarChart3,
-  CheckSquare, MessageCircle, Grid, LogOut, Menu, X
+  CheckSquare, MessageCircle, Grid, LogOut, Menu, X, Search, Bell, Info, CheckCircle, AlertTriangle, AlertCircle
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { db } from '../../firebase';
+import { collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 
 // Subviews
 import DashboardUtama from './views/DashboardUtama';
@@ -35,6 +38,9 @@ export default function AccountingDashboard() {
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ModuleView>('dashboard_utama');
   const [showMenu, setShowMenu] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [toasts, setToasts] = useState<any[]>([]);
 
   // Guard: Redirect jika bukan direktur
   useEffect(() => {
@@ -42,6 +48,57 @@ export default function AccountingDashboard() {
       navigate('/login');
     }
   }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', 'in', [user.id, 'system', 'all']),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleToast = (e: any) => {
+      const { title, message, type = 'info' } = e.detail;
+      const id = Math.random().toString(36).substr(2, 9);
+      setToasts(prev => [...prev, { id, title, message, type }]);
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, 5000);
+    };
+
+    window.addEventListener('app-toast', handleToast);
+    return () => window.removeEventListener('app-toast', handleToast);
+  }, []);
+
+  useEffect(() => {
+    const handleChangeModule = (e: any) => {
+      if (e.detail?.module) {
+        setActiveModule(e.detail.module as ModuleView);
+        if (window.innerWidth < 1024) setShowMenu(false);
+      }
+    };
+
+    window.addEventListener('app-change-module', handleChangeModule);
+    return () => window.removeEventListener('app-change-module', handleChangeModule);
+  }, []);
+
+  const markNotifRead = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'notifications', id), { read: true });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   if (authLoading || !user) {
     return (
@@ -125,7 +182,7 @@ export default function AccountingDashboard() {
         </div>
 
         {/* Navigation Links */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto py-6 px-4 no-scrollbar">
           <div className="mb-4 px-2">
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">MODUL UTAMA</p>
           </div>
@@ -150,15 +207,7 @@ export default function AccountingDashboard() {
           </nav>
         </div>
 
-        {/* User Profile / Logout */}
         <div className="p-4 border-t border-slate-800/50 bg-[#0f172a]">
-          <div className="flex items-center gap-3 px-2 mb-4">
-            <img src={user.avatar} alt="Profile" className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700" />
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold text-white truncate">{user.name}</p>
-              <p className="text-[11px] text-slate-400 uppercase tracking-wider">{user.role}</p>
-            </div>
-          </div>
           <button 
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
@@ -187,11 +236,138 @@ export default function AccountingDashboard() {
           </button>
         </header>
 
+        {/* Desktop Top Header - The missing piece from user request */}
+        <header className="hidden lg:flex h-20 bg-white border-b border-slate-200 items-center justify-between px-10 sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">
+              {menuItems.find(m => m.id === activeModule)?.label || 'Dashboard'}
+            </h1>
+            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-black rounded-full uppercase tracking-widest border border-emerald-100">
+              Periode Aktif: 2028
+            </span>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-300 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="Cari data..." 
+                className="bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 w-64 transition-all" 
+              />
+            </div>
+
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className={`p-2.5 rounded-xl transition-all relative group ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-2 right-2 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isNotifOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50"
+                  >
+                    <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Notifikasi</h3>
+                      <span className="text-[10px] text-blue-600 font-bold">{unreadCount} Baru</span>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-slate-300">
+                          <p className="text-[10px] font-bold uppercase tracking-widest">Tidak ada notifikasi</p>
+                        </div>
+                      ) : (
+                        notifications.map(n => (
+                          <button 
+                            key={n.id} 
+                            onClick={() => { markNotifRead(n.id); setIsNotifOpen(false); }} 
+                            className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 ${!n.read ? 'bg-blue-50/30' : ''}`}
+                          >
+                            <p className="text-xs font-bold text-slate-800">{n.title}</p>
+                            <p className="text-[10px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{n.message}</p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
+            <div className="w-px h-8 bg-slate-100 mx-2"></div>
+            
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-900 leading-none">{user.name}</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">{user.role}</p>
+              </div>
+              <img src={user.avatar} alt="Profile" className="w-10 h-10 rounded-xl border border-slate-200" />
+            </div>
+          </div>
+        </header>
+
         {/* Page Content */}
         <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {renderContent()}
           </div>
+        </div>
+
+        {/* Toast Container */}
+        <div className="fixed bottom-8 right-8 z-[100] flex flex-col gap-3">
+          <AnimatePresence>
+            {toasts.map((toast) => (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, x: 50, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 flex items-start gap-4 min-w-[320px] max-w-md relative overflow-hidden"
+              >
+                <div className={`p-2 rounded-xl shrink-0 ${
+                  toast.type === 'success' ? "bg-emerald-50 text-emerald-600" :
+                  toast.type === 'error' ? "bg-rose-50 text-rose-600" :
+                  toast.type === 'warning' ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-blue-600"
+                }`}>
+                  {toast.type === 'success' && <CheckCircle size={20} />}
+                  {toast.type === 'error' && <AlertCircle size={20} />}
+                  {toast.type === 'warning' && <AlertTriangle size={20} />}
+                  {toast.type === 'info' && <Info size={20} />}
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-black text-slate-900 leading-tight">{toast.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{toast.message}</p>
+                </div>
+                <button 
+                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                  className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={14} className="text-slate-400" />
+                </button>
+                <motion.div 
+                  initial={{ width: "100%" }}
+                  animate={{ width: "0%" }}
+                  transition={{ duration: 5, ease: "linear" }}
+                  className={`absolute bottom-0 left-0 h-1 ${
+                    toast.type === 'success' ? "bg-emerald-500" :
+                    toast.type === 'error' ? "bg-rose-500" :
+                    toast.type === 'warning' ? "bg-amber-500" : "bg-blue-500"
+                  }`}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </main>
     </div>

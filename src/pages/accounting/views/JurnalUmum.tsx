@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { formatCurrency } from '../../../lib/utils';
-import { Plus, Search, Filter, Loader2, Save, X, FileText, Download } from 'lucide-react';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
+import { Plus, Search, Filter, Loader2, Save, X, FileText, Download, Calendar, Trash2 } from 'lucide-react';
+import { sendNotification } from '../../../lib/notifications';
+import { useAuth } from '../../../authContext';
 
 export default function JurnalUmum() {
+  const { user: currentUser } = useAuth();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [coa, setCoa] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Semua Jurnal');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterDates, setFilterDates] = useState({ start: '', end: '' });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -65,7 +70,9 @@ export default function JurnalUmum() {
             type: 'income', // mapped as debit based on current logic
             amount: debitAmt,
             status: 'pending',
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            authorId: currentUser?.id || 'system',
+            authorName: currentUser?.name || 'Unknown'
           });
         }
         if (kreditAmt > 0) {
@@ -77,21 +84,49 @@ export default function JurnalUmum() {
             type: 'expense', // mapped as kredit based on current logic
             amount: kreditAmt,
             status: 'pending',
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            authorId: currentUser?.id || 'system',
+            authorName: currentUser?.name || 'Unknown'
           });
         }
         return Promise.resolve();
       });
 
       await Promise.all(batchPromises);
+
+      // Send Notification
+      await sendNotification({
+        title: 'Jurnal Umum Baru',
+        message: `Transaksi [${formData.reference}] - ${formData.description} berhasil dicatat.`,
+        type: 'success'
+      });
+
+      // Show Toast
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          title: 'Jurnal Berhasil!',
+          message: 'Data transaksi telah diposting ke sistem.',
+          type: 'success'
+        }
+      }));
+
       setShowAddForm(false);
       setFormData({ date: new Date().toISOString().split('T')[0], reference: '', description: '' });
       setRows([{ id: 1, account: '', debit: '', kredit: '' }]);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Gagal menambahkan jurnal.');
+      alert('Gagal menambahkan jurnal: ' + err.message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'transactions', id));
+    } catch (err: any) {
+      alert('Gagal menghapus transaksi: ' + err.message);
     }
   };
 
@@ -114,16 +149,34 @@ export default function JurnalUmum() {
                         t.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         t.reference?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Simplistic tab filtering logic (adjust as needed for actual business logic)
+    let matchDate = true;
+    if (filterDates.start) matchDate = matchDate && t.date >= filterDates.start;
+    if (filterDates.end) matchDate = matchDate && t.date <= filterDates.end;
+
+    if (!matchDate) return false;
+
+    // Simplistic tab filtering logic
     if (activeTab === 'Semua Jurnal') return matchSearch;
-    // Mocking specific filters since type is only income/expense
-    if (activeTab === 'Kas Masuk (JKM)') return matchSearch && t.type === 'income' && (t.category?.includes('Kas') || true);
+    if (activeTab === 'Kas Masuk (JKM)') return matchSearch && t.type === 'income';
     if (activeTab === 'Bank Masuk (JBM)') return matchSearch && t.type === 'income' && t.category?.includes('Bank');
-    if (activeTab === 'Kas Keluar (JKK)') return matchSearch && t.type === 'expense' && (t.category?.includes('Kas') || true);
+    if (activeTab === 'Kas Keluar (JKK)') return matchSearch && t.type === 'expense';
     if (activeTab === 'Bank Keluar (JBK)') return matchSearch && t.type === 'expense' && t.category?.includes('Bank');
     
     return matchSearch;
   });
+
+  const handleExport = () => {
+    const dataToExport = filteredTx.map(t => ({
+      Tanggal: t.date,
+      Referensi: t.reference,
+      Keterangan: t.description,
+      Akun: t.category,
+      Debit: t.type === 'income' ? t.amount : 0,
+      Kredit: t.type === 'expense' ? t.amount : 0,
+      Status: t.status || 'pending'
+    }));
+    exportToCSV(dataToExport, `Jurnal_Umum_${new Date().toISOString().split('T')[0]}`);
+  };
 
   const tabs = ["Semua Jurnal", "Kas Masuk (JKM)", "Bank Masuk (JBM)", "Kas Keluar (JKK)", "Bank Keluar (JBK)"];
 
@@ -169,10 +222,16 @@ export default function JurnalUmum() {
           />
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm">
-            <Filter size={18} /> Filter
+          <button 
+            onClick={() => setShowFilter(true)}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl border flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm transition-all ${filterDates.start || filterDates.end ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          >
+            <Filter size={18} /> {filterDates.start || filterDates.end ? 'Filter Aktif' : 'Filter'}
           </button>
-          <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm">
+          <button 
+            onClick={handleExport}
+            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm"
+          >
             <Download size={18} /> Export
           </button>
           <button 
@@ -206,6 +265,7 @@ export default function JurnalUmum() {
                   <th className="p-4 text-right">Debit</th>
                   <th className="p-4 text-right">Kredit</th>
                   <th className="p-4 text-center">Status</th>
+                  <th className="p-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -227,6 +287,14 @@ export default function JurnalUmum() {
                       }`}>
                         {t.status || 'pending'}
                       </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button 
+                        onClick={() => handleDelete(t.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -339,6 +407,43 @@ export default function JurnalUmum() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Filter */}
+      {showFilter && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Filter Periode</h3>
+              <button onClick={() => setShowFilter(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Mulai</label>
+                <input type="date" value={filterDates.start} onChange={e => setFilterDates({...filterDates, start: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Selesai</label>
+                <input type="date" value={filterDates.end} onChange={e => setFilterDates({...filterDates, end: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => { setFilterDates({ start: '', end: '' }); setShowFilter(false); }}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                >
+                  Reset
+                </button>
+                <button 
+                  onClick={() => setShowFilter(false)}
+                  className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+                >
+                  Terapkan
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

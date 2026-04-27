@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, where, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { Target, Loader2, Plus, Search, Filter, Download, ArrowUpRight, BarChart3, X, Calculator, Calendar } from 'lucide-react';
-import { formatCurrency } from '../../../lib/utils';
+import { Target, Loader2, Plus, Search, Filter, Download, ArrowUpRight, BarChart3, X, Calculator, Calendar, Trash2 } from 'lucide-react';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
+import { useAuth } from '../../../authContext';
 
 export default function Anggaran() {
+  const { user } = useAuth();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [coa, setCoa] = useState<any[]>([]);
@@ -65,12 +67,23 @@ export default function Anggaran() {
       await addDoc(collection(db, 'budgets'), {
         ...formData,
         amount: Number(formData.amount),
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        authorId: user?.id || 'system',
+        authorName: user?.name || 'Unknown'
       });
       setShowAddForm(false);
       setFormData({ coaCode: '', amount: 0, year: selectedYear, category: 'Operasional' });
-    } catch (err) {
-      alert('Gagal menambah anggaran');
+    } catch (err: any) {
+      alert('Gagal menambah anggaran: ' + err.message);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus anggaran ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'budgets', id));
+    } catch (err: any) {
+      alert('Gagal menghapus anggaran: ' + err.message);
     }
   };
 
@@ -140,7 +153,20 @@ export default function Anggaran() {
             >
               {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <button className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm text-sm">
+            <button 
+              onClick={() => {
+                const data = processedBudgets.map(b => ({
+                  Kode: b.coaCode,
+                  Nama: b.name,
+                  Kategori: b.category,
+                  Pagu: b.amount,
+                  Realisasi: b.realized,
+                  Persen: b.amount > 0 ? Math.round((b.realized / b.amount) * 100) : 0
+                }));
+                exportToCSV(data, `RKAP_${selectedYear}`);
+              }}
+              className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm text-sm"
+            >
               <Download size={18} /> Export RKAP
             </button>
           </div>
@@ -163,6 +189,7 @@ export default function Anggaran() {
                   <th className="p-5 text-right">Pagu Anggaran</th>
                   <th className="p-5 text-right">Realisasi</th>
                   <th className="p-5">Progress Penyerapan</th>
+                  <th className="p-5 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -197,6 +224,14 @@ export default function Anggaran() {
                           </div>
                           <span className="text-[10px] font-black text-slate-400">{percent}%</span>
                         </div>
+                      </td>
+                      <td className="p-5 text-right">
+                        <button 
+                          onClick={() => handleDelete(b.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   );

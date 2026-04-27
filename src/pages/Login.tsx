@@ -113,8 +113,8 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-secondary/20 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#00478d]/20 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-[#4b6175]/20 rounded-full blur-[100px] pointer-events-none" />
       
       <div className="absolute top-8 right-8 z-50">
         <LanguageToggle />
@@ -131,7 +131,7 @@ export default function Login() {
               className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 border border-white/50"
             >
               <div className="flex flex-col items-center mb-8">
-                <div className="w-16 h-16 bg-gradient-to-tr from-primary to-primary-container rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-primary/20">
+                <div className="w-16 h-16 bg-gradient-to-tr from-[#00478d] to-[#005eb8] rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-[#00478d]/20">
                   <Waves size={32} />
                 </div>
                 <h1 className="text-2xl font-headline font-bold text-slate-800">{t('login.gate.title')}</h1>
@@ -207,14 +207,14 @@ export default function Login() {
                     value={vCode}
                     onChange={(e) => setVCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
-                    className="block w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl font-bold tracking-[0.5em] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    className="block w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl font-bold tracking-[0.5em] focus:ring-2 focus:ring-primary/20 focus:border-[#00478d] outline-none transition-all"
                     required
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isSubmitting || vCode.length !== 6}
-                  className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center"
+                  className="w-full py-4 bg-[#00478d] text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all flex items-center justify-center"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('login.verify.button')}
                 </button>
@@ -303,7 +303,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center"
+                  className="w-full py-4 bg-[#00478d] text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all flex items-center justify-center"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('login.reset.confirm_button')}
                 </button>
@@ -328,7 +328,7 @@ export default function Login() {
               </div>
               <button
                 onClick={() => { setStep('role'); setError(''); }}
-                className="w-full py-4.5 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center gap-3 uppercase tracking-wider text-xs"
+                className="w-full py-4.5 bg-[#00478d] text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-wider text-xs"
               >
                 {t('login.pending.button')}
               </button>
@@ -349,7 +349,7 @@ export default function Login() {
               </p>
               <button
                 onClick={() => setStep('login')}
-                className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb]"
+                className="w-full py-4 bg-[#00478d] text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all"
               >
                 {t('login.reset.back')}
               </button>
@@ -368,7 +368,7 @@ export default function Login() {
               </button>
 
               <div className="mb-6">
-                <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
+                <span className="inline-block px-3 py-1 rounded-full bg-[#00478d]/10 text-[#00478d] text-xs font-bold mb-3">
                   {getRoleLabel(selectedRole)} Access
                 </span>
                 <h2 className="text-2xl font-bold text-slate-800">
@@ -437,7 +437,7 @@ export default function Login() {
 
                 {step === 'login' && (
                   <div className="flex items-center justify-end">
-                    <button type="button" onClick={() => setStep('forgot-password')} className="text-sm font-medium text-primary hover:underline" disabled={isSubmitting}>
+                    <button type="button" onClick={() => setStep('forgot-password')} className="text-sm font-medium text-[#00478d] hover:underline" disabled={isSubmitting}>
                       {t('login.label.forgot')}
                     </button>
                   </div>
@@ -446,7 +446,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-[#005cbb] flex items-center justify-center"
+                  className="w-full py-3.5 bg-[#00478d] text-white rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (step === 'login' ? t('login.button.signin') : 'Send Instructions')}
                 </button>
@@ -454,7 +454,7 @@ export default function Login() {
 
               <div className="mt-6 text-center text-sm text-slate-500">
                 {step === 'login' ? null : (
-                  <button onClick={() => setStep('login')} className="font-bold text-primary">{t('login.footer.back')}</button>
+                  <button onClick={() => setStep('login')} className="font-bold text-[#00478d]">{t('login.footer.back')}</button>
                 )}
               </div>
             </motion.div>

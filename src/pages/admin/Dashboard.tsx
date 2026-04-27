@@ -247,9 +247,9 @@ export default function AdminDashboard() {
   };
 
   const stats = [
-    { label: t('admin.stats.total_staff'), value: allUsers.filter((u: User) => u.role === 'staff').length.toString(), change: '+4.2%', color: 'text-primary', icon: Users, trend: 'up' as const },
-    { label: t('admin.stats.active_staff'), value: allUsers.filter((u: User) => u.role === 'staff' && u.status === 'active').length.toString(), sub: t('admin.stats.active_online'), color: 'text-tertiary', icon: BadgeCheck },
-    { label: t('admin.stats.task_orders'), value: tasks.filter((task: Task) => task.status !== 'completed').length.toString(), sub: t('admin.stats.pending_tasks'), color: 'text-secondary', icon: Clock },
+    { label: t('admin.stats.total_staff'), value: allUsers.filter((u: User) => u.role === 'staff').length.toString(), change: '+4.2%', color: 'text-[#00478d]', icon: Users, trend: 'up' as const },
+    { label: t('admin.stats.active_staff'), value: allUsers.filter((u: User) => u.role === 'staff' && u.status === 'active').length.toString(), sub: t('admin.stats.active_online'), color: 'text-[#005051]', icon: BadgeCheck },
+    { label: t('admin.stats.task_orders'), value: tasks.filter((task: Task) => task.status !== 'completed').length.toString(), sub: t('admin.stats.pending_tasks'), color: 'text-[#4b6175]', icon: Clock },
   ];
 
   const renderContent = () => {
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
                   onClick={() => setUserFilter('staff')}
                   className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
                     userFilter === 'staff'
-                      ? 'bg-white text-primary shadow-sm'
+                      ? 'bg-white text-[#00478d] shadow-sm'
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
@@ -373,7 +373,7 @@ export default function AdminDashboard() {
                   onClick={() => setUserFilter('customer')}
                   className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
                     userFilter === 'customer'
-                      ? 'bg-white text-primary shadow-sm'
+                      ? 'bg-white text-[#00478d] shadow-sm'
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
@@ -383,7 +383,7 @@ export default function AdminDashboard() {
                   onClick={() => setUserFilter('direktur')}
                   className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
                     userFilter === 'direktur'
-                      ? 'bg-white text-primary shadow-sm'
+                      ? 'bg-white text-[#00478d] shadow-sm'
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
@@ -392,7 +392,7 @@ export default function AdminDashboard() {
               </div>
               <button 
                 onClick={() => openAddUser()}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                className="flex items-center gap-2 px-6 py-3 bg-[#00478d] text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
               >
                 <UserPlus size={20} />
                 {t('admin.user.add_new')}
@@ -427,7 +427,7 @@ export default function AdminDashboard() {
                     <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                          <div className="w-12 h-12 rounded-2xl bg-[#00478d]/10 text-[#00478d] flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
                             {c.nama ? c.nama.substring(0, 2).toUpperCase() : 'PL'}
                           </div>
                           <div>
@@ -462,7 +462,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                          <button onClick={() => handleEditClick(c)} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95" title="Edit">
+                          <button onClick={() => handleEditClick(c)} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-[#00478d] transition-all active:scale-95" title="Edit">
                             <Edit size={18} />
                           </button>
                           <button onClick={() => handleDeleteCustomer(c.id, c.nama || 'Pelanggan')} className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all active:scale-95" title="Hapus">
@@ -488,7 +488,7 @@ export default function AdminDashboard() {
                     <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                          <div className="w-12 h-12 rounded-2xl bg-[#00478d]/10 text-[#00478d] flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
                             {u.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
@@ -508,7 +508,7 @@ export default function AdminDashboard() {
                           </p>
                           <button 
                             onClick={() => setVisiblePasswords(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
-                            className="p-1.5 hover:bg-primary/10 rounded-lg text-slate-400 hover:text-primary transition-all opacity-0 group-hover/pass:opacity-100"
+                            className="p-1.5 hover:bg-[#00478d]/10 rounded-lg text-slate-400 hover:text-[#00478d] transition-all opacity-0 group-hover/pass:opacity-100"
                             title={visiblePasswords.includes(u.id) ? 'Hide Password' : 'Show Password'}
                           >
                             {visiblePasswords.includes(u.id) ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -528,7 +528,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                          <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-primary transition-all active:scale-95"><Edit size={18} /></button>
+                          <button className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-[#00478d] transition-all active:scale-95"><Edit size={18} /></button>
                           {(u.status || 'active') === 'active' ? (
                             <button 
                               onClick={() => handleToggleStatus(u.id, u.status || 'active')}
@@ -571,7 +571,7 @@ export default function AdminDashboard() {
                 <button
                   onClick={() => setTaskTab('tasks')}
                   className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                    taskTab === 'tasks' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    taskTab === 'tasks' ? 'bg-white text-[#00478d] shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   Perintah Kerja
@@ -579,7 +579,7 @@ export default function AdminDashboard() {
                 <button
                   onClick={() => setTaskTab('complaints')}
                   className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
-                    taskTab === 'complaints' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    taskTab === 'complaints' ? 'bg-white text-[#00478d] shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   Pengaduan Masuk
@@ -592,7 +592,7 @@ export default function AdminDashboard() {
               </div>
               <button 
                 onClick={() => setIsAddingTask(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                className="flex items-center gap-2 px-6 py-3 bg-[#00478d] text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
               >
                 <Plus size={20} />
                 {t('admin.tasks.add')}
@@ -691,7 +691,7 @@ export default function AdminDashboard() {
                                <td className="px-8 py-5">
                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                      task.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
-                                     task.status === 'in-progress' ? 'bg-primary/10 text-primary' :
+                                     task.status === 'in-progress' ? 'bg-[#00478d]/10 text-[#00478d]' :
                                      task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                                   }`}>
                                      {task.status === 'in-progress' ? 'DIPROSES STAFF' : t(`admin.tasks.status.${task.status}`).toUpperCase()}
@@ -702,7 +702,7 @@ export default function AdminDashboard() {
                                      <div className="relative inline-block text-left">
                                         <button 
                                           onClick={() => setSelectedTaskForAssignment(selectedTaskForAssignment === task.id ? null : task.id)}
-                                          className="p-2 hover:bg-slate-100 rounded-xl transition-all text-primary font-bold text-xs flex items-center gap-2 group"
+                                          className="p-2 hover:bg-slate-100 rounded-xl transition-all text-[#00478d] font-bold text-xs flex items-center gap-2 group"
                                         >
                                            {task.assignedTo ? t('admin.tasks.change_staff') : t('admin.tasks.assign_staff')}
                                            <Edit size={14} className="group-hover:translate-x-0.5 transition-transform" />
@@ -726,16 +726,16 @@ export default function AdminDashboard() {
                                                       setSelectedTaskForAssignment(null);
                                                       showNotification(`${t('admin.user.msg.assigned')} ${staff.name}`, 'success');
                                                     }}
-                                                    className="w-full px-4 py-3 text-left hover:bg-primary/5 flex items-center gap-3 transition-colors"
+                                                    className="w-full px-4 py-3 text-left hover:bg-[#00478d]/5 flex items-center gap-3 transition-colors"
                                                   >
-                                                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                                                    <div className="w-8 h-8 rounded-lg bg-[#00478d]/10 text-[#00478d] flex items-center justify-center font-bold text-[10px]">
                                                       {staff.name.substring(0, 2).toUpperCase()}
                                                     </div>
                                                     <div className="flex-1">
                                                       <p className="text-xs font-bold text-slate-700">{staff.name}</p>
                                                       <p className="text-[10px] text-slate-400">{staff.phone}</p>
                                                     </div>
-                                                    {task.assignedTo === staff.id && <Check size={14} className="text-primary" />}
+                                                    {task.assignedTo === staff.id && <Check size={14} className="text-[#00478d]" />}
                                                   </button>
                                                 ))}
                                               </div>
@@ -789,7 +789,7 @@ export default function AdminDashboard() {
                               </td>
                               <td className="px-8 py-5">
                                  {complaint.imageUrl ? (
-                                    <a href={complaint.imageUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-primary hover:underline text-xs font-bold">
+                                    <a href={complaint.imageUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[#00478d] hover:underline text-xs font-bold">
                                        <Camera size={14} /> Lihat Foto
                                     </a>
                                  ) : (
@@ -854,7 +854,7 @@ export default function AdminDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
                   <h3 className={`text-3xl font-headline font-extrabold mt-1 ${stat.color}`}>{stat.value}</h3>
                 </div>
-                <div className={`p-4 rounded-2xl ${stat.color === 'text-primary' ? 'bg-primary/5 text-primary' : stat.color === 'text-tertiary' ? 'bg-tertiary/5 text-tertiary' : 'bg-secondary/5 text-secondary'} group-hover:scale-110 transition-transform`}>
+                <div className={`p-4 rounded-2xl ${stat.color === 'text-[#00478d]' ? 'bg-[#00478d]/5 text-[#00478d]' : stat.color === 'text-[#005051]' ? 'bg-[#005051]/5 text-[#005051]' : 'bg-[#4b6175]/5 text-[#4b6175]'} group-hover:scale-110 transition-transform`}>
                   <stat.icon size={28} />
                 </div>
               </div>
@@ -873,10 +873,10 @@ export default function AdminDashboard() {
         <section className="flex gap-4">
            <button 
              onClick={() => setActiveView('users')}
-             className="flex-1 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between hover:bg-primary/5 transition-colors group"
+             className="flex-1 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between hover:bg-[#00478d]/5 transition-colors group"
            >
              <div className="flex items-center gap-4">
-               <div className="w-12 h-12 rounded-2xl bg-primary/5 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+               <div className="w-12 h-12 rounded-2xl bg-[#00478d]/5 text-[#00478d] flex items-center justify-center group-hover:bg-[#00478d] group-hover:text-white transition-all">
                  <Users size={24} />
                </div>
                <div className="text-left">
@@ -884,17 +884,17 @@ export default function AdminDashboard() {
                  <p className="text-xs text-slate-500 font-medium">{t('admin.user.management_sub')}</p>
                </div>
              </div>
-             <div className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+             <div className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:bg-[#00478d]/10 group-hover:text-[#00478d] transition-all">
                 <Plus size={20} />
              </div>
            </button>
 
            <button 
              onClick={() => setActiveView('tasks')}
-             className="flex-1 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between hover:bg-secondary/5 transition-colors group"
+             className="flex-1 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between hover:bg-[#4b6175]/5 transition-colors group"
            >
              <div className="flex items-center gap-4">
-               <div className="w-12 h-12 rounded-2xl bg-secondary/5 text-secondary flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-all">
+               <div className="w-12 h-12 rounded-2xl bg-[#4b6175]/5 text-[#4b6175] flex items-center justify-center group-hover:bg-[#4b6175] group-hover:text-white transition-all">
                  <Wrench size={24} />
                </div>
                <div className="text-left">
@@ -902,23 +902,23 @@ export default function AdminDashboard() {
                  <p className="text-xs text-slate-500 font-medium">{t('admin.tasks.management_sub')}</p>
                </div>
              </div>
-             <div className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:bg-secondary/10 group-hover:text-secondary transition-all">
+             <div className="p-2 bg-slate-50 rounded-xl text-slate-400 group-hover:bg-[#4b6175]/10 group-hover:text-[#4b6175] transition-all">
                 <Plus size={20} />
              </div>
            </button>
         </section>
 
-        <section className="bg-slate-900 rounded-[3.5rem] p-10 text-white border-l-[10px] border-primary relative overflow-hidden">
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary/10 rounded-full blur-[80px]" />
+        <section className="bg-slate-900 rounded-[3.5rem] p-10 text-white border-l-[10px] border-[#00478d] relative overflow-hidden">
+          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-[#00478d]/10 rounded-full blur-[80px]" />
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary">
+            <div className="w-10 h-10 bg-[#00478d]/20 rounded-xl flex items-center justify-center text-[#00478d]">
               <History size={24} />
             </div>
             <h2 className="font-bold text-xl font-headline tracking-tight">{t('common.history')}</h2>
           </div>
           <div className="space-y-8 relative z-10">
             <div className="flex gap-6 items-start group">
-              <div className="w-2.5 h-2.5 mt-2 rounded-full bg-primary ring-4 ring-primary/20 shrink-0 group-hover:scale-125 transition-transform"></div>
+              <div className="w-2.5 h-2.5 mt-2 rounded-full bg-[#00478d] ring-4 ring-primary/20 shrink-0 group-hover:scale-125 transition-transform"></div>
               <div className="flex-grow">
                 <div className="flex justify-between items-center mb-1">
                   <p className="text-sm font-bold text-slate-100">{t('admin.activity.tariff_update')}</p>
@@ -948,10 +948,10 @@ export default function AdminDashboard() {
       <aside className="w-72 bg-white border-r border-slate-100 flex flex-col py-10 px-6 fixed h-full z-50">
         <div className="mb-12 px-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
+            <div className="w-10 h-10 bg-[#00478d] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
               <Waves size={24} />
             </div>
-            <h1 className="text-2xl font-headline font-bold text-primary tracking-tight">{t('app.name')}</h1>
+            <h1 className="text-2xl font-headline font-bold text-[#00478d] tracking-tight">{t('app.name')}</h1>
           </div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold">{t('common.search')} MANAGEMENT</p>
         </div>
@@ -960,7 +960,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => setActiveView('dashboard')}
             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all group ${
-              activeView === 'dashboard' ? 'bg-primary text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+              activeView === 'dashboard' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center gap-4">
@@ -973,7 +973,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => setActiveView('users')}
             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all group ${
-              activeView === 'users' ? 'bg-primary text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+              activeView === 'users' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center gap-4">
@@ -986,7 +986,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => setActiveView('requests')}
             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all group ${
-              activeView === 'requests' ? 'bg-primary text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+              activeView === 'requests' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center gap-4">
@@ -999,7 +999,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => setActiveView('tasks')}
             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all group ${
-              activeView === 'tasks' ? 'bg-primary text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+              activeView === 'tasks' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center gap-4">
@@ -1016,7 +1016,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => setActiveView('waterflow')}
             className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all ${
-              activeView === 'waterflow' ? 'bg-primary text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+              activeView === 'waterflow' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <Waves size={20} />
@@ -1025,7 +1025,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => setActiveView('billing')}
             className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all ${
-              activeView === 'billing' ? 'bg-primary text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+              activeView === 'billing' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <CreditCard size={20} />
@@ -1048,7 +1048,7 @@ export default function AdminDashboard() {
         <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-10 sticky top-0 z-40">
           <div className="flex items-center gap-4">
              <div className="relative group">
-               <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+               <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00478d] transition-colors" />
                <input 
                  type="text" 
                  placeholder={t('common.search')} 
@@ -1059,11 +1059,11 @@ export default function AdminDashboard() {
           
           <div className="flex items-center gap-6">
             <div className="flex gap-2">
-              <button className="p-3 bg-white text-slate-400 hover:text-primary hover:bg-primary/5 rounded-2xl relative transition-all border border-slate-50">
+              <button className="p-3 bg-white text-slate-400 hover:text-[#00478d] hover:bg-[#00478d]/5 rounded-2xl relative transition-all border border-slate-50">
                 <Bell size={20} />
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
               </button>
-              <button className="p-3 bg-white text-slate-400 hover:text-primary hover:bg-primary/5 rounded-2xl transition-all border border-slate-50">
+              <button className="p-3 bg-white text-slate-400 hover:text-[#00478d] hover:bg-[#00478d]/5 rounded-2xl transition-all border border-slate-50">
                 <HelpCircle size={20} />
               </button>
             </div>
@@ -1073,7 +1073,7 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-4">
                <div className="text-right">
                   <p className="text-sm font-bold text-slate-800">{user?.name}</p>
-                  <p className="text-[10px] text-primary font-extrabold uppercase tracking-tighter">{t('admin.profile.role')}</p>
+                  <p className="text-[10px] text-[#00478d] font-extrabold uppercase tracking-tighter">{t('admin.profile.role')}</p>
                </div>
                <div className="flex items-center gap-3">
                   <button 
@@ -1157,7 +1157,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div className="pt-2">
-                    <button type="submit" className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs">Tugaskan Sekarang</button>
+                    <button type="submit" className="w-full py-4 bg-[#00478d] text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs">Tugaskan Sekarang</button>
                   </div>
                 </form>
               </motion.div>
@@ -1222,7 +1222,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex gap-4 pt-4">
                     <button type="button" onClick={() => setIsAddingUser(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all uppercase tracking-wider text-xs">{t('admin.user.button.cancel')}</button>
-                    <button type="submit" className="flex-[2] py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]">{t('admin.user.button.create')}</button>
+                    <button type="submit" className="flex-[2] py-4 bg-[#00478d] text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]">{t('admin.user.button.create')}</button>
                   </div>
                 </form>
               </motion.div>
@@ -1271,7 +1271,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex gap-4 pt-4">
                     <button type="button" onClick={() => setIsEditingCustomer(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all uppercase tracking-wider text-xs">Batal</button>
-                    <button type="submit" className="flex-[2] py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]">Simpan</button>
+                    <button type="submit" className="flex-[2] py-4 bg-[#00478d] text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]">Simpan</button>
                   </div>
                 </form>
               </motion.div>
@@ -1315,7 +1315,7 @@ export default function AdminDashboard() {
                                type="button"
                                onClick={() => setNewTaskForm({...newTaskForm, type})}
                                className={`px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center gap-1.5 border ${
-                                 newTaskForm.type === type ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'
+                                 newTaskForm.type === type ? 'bg-[#00478d] text-white border-[#00478d] shadow-lg shadow-primary/20' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'
                                }`}
                              >
                                {type === 'repair' ? <Wrench size={14} /> : type === 'reading' ? <TrendingUp size={14} /> : type === 'new_connection' ? <Plus size={14} /> : <Scissors size={14} />}
@@ -1401,7 +1401,7 @@ export default function AdminDashboard() {
                        </button>
                        <button 
                          type="submit"
-                         className="flex-[2] py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]"
+                         className="flex-[2] py-4 bg-[#00478d] text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all uppercase tracking-wider text-xs bg-gradient-to-r from-primary to-[#005cbb]"
                        >
                          {t('admin.tasks.button.create')}
                        </button>

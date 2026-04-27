@@ -19,7 +19,7 @@ export default function Repairs() {
           <h2 className="text-2xl font-headline font-bold">{t('admin.repairs.title')}</h2>
           <p className="text-sm text-slate-500">{t('admin.repairs.subtitle')}</p>
         </div>
-        <button className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20">
+        <button className="px-6 py-2.5 bg-[#00478d] text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20">
           {t('admin.repairs.new')}
         </button>
       </header>
@@ -27,7 +27,7 @@ export default function Repairs() {
       {/* Status Overview */}
       <section className="grid grid-cols-4 gap-4">
         {[
-          { label: t('admin.tasks.status.active'), count: 14, color: 'text-primary', bg: 'bg-primary/5' },
+          { label: t('admin.tasks.status.active'), count: 14, color: 'text-[#00478d]', bg: 'bg-[#00478d]/5' },
           { label: t('admin.tasks.status.pending'), count: 8, color: 'text-amber-500', bg: 'bg-amber-50' },
           { label: t('admin.tasks.status.unassigned'), count: 3, color: 'text-error', bg: 'bg-error/5' },
           { label: t('admin.tasks.status.completed'), count: 42, color: 'text-emerald-500', bg: 'bg-emerald-50' },
@@ -75,14 +75,14 @@ export default function Repairs() {
               <div className="text-right">
                 <span className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full ${
                   rep.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
-                  rep.status === 'in-progress' ? 'bg-primary/10 text-primary' :
+                  rep.status === 'in-progress' ? 'bg-[#00478d]/10 text-[#00478d]' :
                   rep.status === 'unassigned' ? 'bg-error/10 text-error' : 'bg-amber-100 text-amber-600'
                 }`}>
                   {rep.status.replace('-', ' ')}
                 </span>
                 <p className="text-[10px] text-slate-400 mt-1 font-bold">{rep.id}</p>
               </div>
-              <button className="p-2 text-slate-300 hover:text-primary transition-colors">
+              <button className="p-2 text-slate-300 hover:text-[#00478d] transition-colors">
                 <MoreHorizontal size={20} />
               </button>
             </div>

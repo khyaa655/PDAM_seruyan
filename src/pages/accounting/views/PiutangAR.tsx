@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { formatCurrency } from '../../../lib/utils';
-import { Users, Loader2, Search, Filter, Download, UserCheck, TrendingUp, Calendar, LayoutDashboard } from 'lucide-react';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
+import { Users, Loader2, Search, Filter, Download, UserCheck, TrendingUp, Calendar, LayoutDashboard, X, Trash2 } from 'lucide-react';
 
 export default function PiutangAR() {
   const [pelanggan, setPelanggan] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Piutang Pelanggan');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterType, setFilterType] = useState('Semua');
   const tabs = ["Piutang Pelanggan", "Analisis Umur Piutang", "Jadwal Penagihan"];
 
   useEffect(() => {
@@ -19,10 +21,35 @@ export default function PiutangAR() {
     return () => unsub();
   }, []);
 
-  const filtered = pelanggan.filter(p => 
-    (p.nama || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (p.nomorSambungan || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus data pelanggan ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'tb_pelanggan', id));
+    } catch (err: any) {
+      alert('Gagal menghapus pelanggan: ' + err.message);
+    }
+  };
+
+  const filtered = pelanggan.filter(p => {
+    const matchSearch = (p.nama || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (p.nomorSambungan || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterType === 'Menunggak') return matchSearch && (p.tagihanTunggakan || p.balance || 0) > 0;
+    if (filterType === 'Lunas') return matchSearch && (p.tagihanTunggakan || p.balance || 0) === 0;
+    
+    return matchSearch;
+  });
+
+  const handleExport = () => {
+    const data = filtered.map(p => ({
+      No_Sambungan: p.nomorSambungan,
+      Nama: p.nama,
+      Alamat: p.alamat,
+      Tagihan: p.tagihanTunggakan || p.balance || 0,
+      Status: (p.tagihanTunggakan || p.balance || 0) > 0 ? 'Menunggak' : 'Lunas'
+    }));
+    exportToCSV(data, 'Laporan_Piutang_Pelanggan');
+  };
 
   if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-blue-600 mb-4" />Memuat Data Piutang...</div>;
 
@@ -37,7 +64,10 @@ export default function PiutangAR() {
           <p className="text-slate-500 text-sm">Manajemen tagihan dan pemantauan piutang pelanggan.</p>
         </div>
         <div className="flex gap-2">
-          <button className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm">
+          <button 
+            onClick={handleExport}
+            className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+          >
             <Download size={18} /> Export Laporan
           </button>
         </div>
@@ -108,8 +138,11 @@ export default function PiutangAR() {
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-bold text-sm bg-white">
-                <Filter size={18} /> Filter
+              <button 
+                onClick={() => setShowFilter(true)}
+                className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-all ${filterType !== 'Semua' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                <Filter size={18} /> {filterType !== 'Semua' ? `Status: ${filterType}` : 'Filter'}
               </button>
             </div>
           </div>
@@ -157,8 +190,14 @@ export default function PiutangAR() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-800 font-bold text-xs">
-                          Rincian Tagihan
+                        <button className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-800 font-bold text-xs mr-3">
+                          Rincian
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(p.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-rose-500 hover:text-rose-700"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>
@@ -175,6 +214,34 @@ export default function PiutangAR() {
            </div>
            <h3 className="text-lg font-bold text-slate-700">Analisis Umur Piutang</h3>
            <p className="text-slate-500 max-w-xs">Modul untuk memantau piutang berdasarkan usia (0-30, 31-60, 61-90, &gt;90 hari) sedang disiapkan.</p>
+        </div>
+      )}
+      {/* Modal Filter */}
+      {showFilter && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Filter Status Piutang</h3>
+              <button onClick={() => setShowFilter(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-2">
+                {['Semua', 'Menunggak', 'Lunas'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => { setFilterType(type); setShowFilter(false); }}
+                    className={`w-full p-4 rounded-2xl text-left font-bold transition-all border ${
+                      filterType === type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

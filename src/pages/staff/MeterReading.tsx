@@ -100,9 +100,9 @@ export default function MeterReading() {
       <nav className="flex justify-between items-center px-6 h-16 w-full bg-white/80 backdrop-blur-xl sticky top-0 z-40 border-b border-slate-100">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-1 hover:bg-slate-100 rounded-full">
-            <ChevronLeft size={24} className="text-primary" />
+            <ChevronLeft size={24} className="text-[#00478d]" />
           </button>
-          <span className="text-lg font-headline font-bold text-primary tracking-tight">{t('app.name')} Read</span>
+          <span className="text-lg font-headline font-bold text-[#00478d] tracking-tight">{t('app.name')} Read</span>
         </div>
         <button onClick={logout} className="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
            <img src={staff?.avatar} alt="Profile" className="w-full h-full object-cover" />
@@ -134,7 +134,7 @@ export default function MeterReading() {
                     <motion.button
                       key={c.id}
                       onClick={() => setSelectedUser(c)}
-                      className="w-full bg-white p-4 rounded-2xl flex items-center justify-between group hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-50"
+                      className="w-full bg-white p-4 rounded-2xl flex items-center justify-between group hover:bg-[#00478d] hover:text-white transition-all shadow-sm border border-slate-50"
                     >
                        <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center group-hover:bg-white/20">
@@ -153,7 +153,7 @@ export default function MeterReading() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Customer Header */}
-            <section className="bg-primary text-white rounded-[2rem] p-6 shadow-xl shadow-primary/20 relative overflow-hidden">
+            <section className="bg-[#00478d] text-white rounded-[2rem] p-6 shadow-xl shadow-[#00478d]/20 relative overflow-hidden">
               <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl" />
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -182,7 +182,7 @@ export default function MeterReading() {
             <div className="space-y-6">
                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 space-y-4">
                   <div className="flex items-center gap-3 mb-2">
-                    <Gauge size={20} className="text-primary" />
+                    <Gauge size={20} className="text-[#00478d]" />
                     <h3 className="text-md font-headline font-bold">{t('staff.tasks.reading')}</h3>
                   </div>
                   <div className="space-y-4">
@@ -200,7 +200,7 @@ export default function MeterReading() {
                         value={readingValue}
                         onChange={(e) => setReadingValue(e.target.value)}
                         placeholder="000000.00" 
-                        className="w-full px-4 py-5 bg-slate-100 border-none rounded-2xl text-primary font-mono text-3xl focus:ring-2 focus:ring-primary transition-all outline-none"
+                        className="w-full px-4 py-5 bg-slate-100 border-none rounded-2xl text-[#00478d] font-mono text-3xl focus:ring-2 focus:ring-[#00478d] transition-all outline-none"
                       />
                     </div>
                   </div>
@@ -208,7 +208,7 @@ export default function MeterReading() {
 
                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50">
                   <div className="flex items-center gap-3 mb-4">
-                    <Camera size={20} className="text-primary" />
+                    <Camera size={20} className="text-[#00478d]" />
                     <h3 className="text-md font-headline font-bold">{t('staff.reading.proof')}</h3>
                   </div>
                   <div 
@@ -237,7 +237,7 @@ export default function MeterReading() {
             <button 
               type="submit" 
               disabled={isSubmitting || !photoCaptured}
-              className="w-full py-5 rounded-full bg-primary text-white font-bold text-lg shadow-xl shadow-primary/20 disabled:opacity-50 disabled:shadow-none active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              className="w-full py-5 rounded-full bg-[#00478d] text-white font-bold text-lg shadow-xl shadow-[#00478d]/20 disabled:opacity-50 disabled:shadow-none active:scale-[0.98] transition-all flex items-center justify-center gap-3"
             >
               <Upload size={20} />
               {isSubmitting ? t('staff.reading.uploading') : t('staff.reading.submit')}

@@ -27,7 +27,7 @@ export default function WaterFlow() {
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <p className="text-primary font-bold text-[10px] uppercase tracking-widest">{t('admin.waterflow.total')}</p>
+              <p className="text-[#00478d] font-bold text-[10px] uppercase tracking-widest">{t('admin.waterflow.total')}</p>
               <h3 className="text-4xl font-headline font-extrabold">9,190 L/s</h3>
             </div>
             <div className="flex items-center gap-2 bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full text-xs font-bold">
@@ -41,7 +41,7 @@ export default function WaterFlow() {
                 key={i}
                 initial={{ height: 0 }}
                 animate={{ height: `${h}%` }}
-                className="flex-1 bg-primary/40 rounded-t-sm"
+                className="flex-1 bg-[#00478d]/40 rounded-t-sm"
               />
             ))}
           </div>
@@ -67,7 +67,7 @@ export default function WaterFlow() {
                   {zone.status === 'optimal' ? t('admin.waterflow.stable') : t('common.urgent')}
                 </span>
               </div>
-              <div className={`p-2 rounded-xl ${zone.status === 'optimal' ? 'bg-slate-50 text-primary' : 'bg-amber-50 text-amber-500'}`}>
+              <div className={`p-2 rounded-xl ${zone.status === 'optimal' ? 'bg-slate-50 text-[#00478d]' : 'bg-amber-50 text-amber-500'}`}>
                 {zone.status === 'optimal' ? <Droplets size={20} /> : <AlertTriangle size={20} />}
               </div>
             </div>

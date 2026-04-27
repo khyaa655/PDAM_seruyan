@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { formatCurrency } from '../../../lib/utils';
-import { Book, Loader2, Filter, Search, Plus, Download, X, Layers } from 'lucide-react';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
+import { Book, Loader2, Filter, Search, Plus, Download, X, Layers, Calendar, Trash2 } from 'lucide-react';
 
 export default function BukuBesar() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -13,6 +13,8 @@ export default function BukuBesar() {
   const [activeTab, setActiveTab] = useState('Daftar Akun (COA)');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterDates, setFilterDates] = useState({ start: '', end: '' });
   const [coaForm, setCoaForm] = useState({
     code: '',
     name: '',
@@ -56,8 +58,17 @@ export default function BukuBesar() {
       });
       setShowAddForm(false);
       setCoaForm({ code: '', name: '', type: 'ASSET', level: 1 });
-    } catch (err) {
-      alert('Gagal menambah akun COA');
+    } catch (err: any) {
+      alert('Gagal menambah akun COA: ' + err.message);
+    }
+  };
+
+  const handleDeleteCoa = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus akun ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'coa', id));
+    } catch (err: any) {
+      alert('Gagal menghapus akun: ' + err.message);
     }
   };
 
@@ -67,7 +78,13 @@ export default function BukuBesar() {
     let currentBalance = 0;
     const isAssetOrExpense = (selectedCoa || '').startsWith('1') || (selectedCoa || '').startsWith('5');
     
-    const accountTx = transactions.filter(t => t.category === selectedCoa);
+    const accountTx = transactions.filter(t => {
+      const matchCoa = t.category === selectedCoa;
+      let matchDate = true;
+      if (filterDates.start) matchDate = matchDate && t.date >= filterDates.start;
+      if (filterDates.end) matchDate = matchDate && t.date <= filterDates.end;
+      return matchCoa && matchDate;
+    });
     
     return accountTx.map(t => {
       const debit = t.type === 'income' ? t.amount : 0;
@@ -87,7 +104,29 @@ export default function BukuBesar() {
         balance: currentBalance
       };
     });
-  }, [transactions, selectedCoa]);
+  }, [transactions, selectedCoa, filterDates]);
+
+  const handleExportCoa = () => {
+    const data = coa.map(c => ({
+      Kode: c.code,
+      Nama: c.name,
+      Tipe: c.type,
+      Level: c.level
+    }));
+    exportToCSV(data, 'Daftar_COA');
+  };
+
+  const handleExportLedger = () => {
+    if (!selectedCoa) return;
+    const data = ledgerData.map(t => ({
+      Tanggal: t.date,
+      Keterangan: t.description,
+      Debit: t.debit,
+      Kredit: t.kredit,
+      Saldo: t.balance
+    }));
+    exportToCSV(data, `Buku_Besar_${selectedCoa}`);
+  };
 
   if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-blue-600 mb-4" />Memuat Buku Besar...</div>;
 
@@ -134,10 +173,16 @@ export default function BukuBesar() {
               />
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm">
-                <Filter size={18} /> Filter
+              <button 
+                onClick={() => setShowFilter(true)}
+                className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl border flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm ${filterDates.start || filterDates.end ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+              >
+                <Filter size={18} /> {filterDates.start || filterDates.end ? 'Filter Aktif' : 'Filter'}
               </button>
-              <button className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm">
+              <button 
+                onClick={handleExportCoa}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm"
+              >
                 <Download size={18} /> Export
               </button>
               <button 
@@ -184,7 +229,12 @@ export default function BukuBesar() {
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        {/* Actions placeholder */}
+                        <button 
+                          onClick={() => handleDeleteCoa(c.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -212,8 +262,17 @@ export default function BukuBesar() {
                 <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
               ))}
             </select>
-            <button className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-2 font-medium text-sm ml-auto bg-white">
-              <Filter size={18} /> Filter Periode
+            <button 
+              onClick={() => setShowFilter(true)}
+              className={`px-4 py-2.5 rounded-xl border flex items-center gap-2 font-medium text-sm ml-auto bg-white shadow-sm ${filterDates.start || filterDates.end ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            >
+              <Filter size={18} /> {filterDates.start || filterDates.end ? 'Filter Periode' : 'Filter Periode'}
+            </button>
+            <button 
+              onClick={handleExportLedger}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-2 font-medium text-sm bg-white shadow-sm"
+            >
+              <Download size={18} /> Export
             </button>
           </div>
 
@@ -335,6 +394,43 @@ export default function BukuBesar() {
                 Simpan Akun
               </button>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Filter */}
+      {showFilter && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Filter Periode</h3>
+              <button onClick={() => setShowFilter(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Mulai</label>
+                <input type="date" value={filterDates.start} onChange={e => setFilterDates({...filterDates, start: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Selesai</label>
+                <input type="date" value={filterDates.end} onChange={e => setFilterDates({...filterDates, end: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => { setFilterDates({ start: '', end: '' }); setShowFilter(false); }}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                >
+                  Reset
+                </button>
+                <button 
+                  onClick={() => setShowFilter(false)}
+                  className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+                >
+                  Terapkan
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

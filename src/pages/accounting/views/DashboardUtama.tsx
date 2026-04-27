@@ -7,9 +7,10 @@ import {
   ArrowUpRight, ArrowDownRight, Wallet, LayoutGrid, Clock,
   Layers, MessageCircle
 } from 'lucide-react';
-import { formatCurrency } from '../../../lib/utils';
+import { formatCurrency, exportToCSV } from '../../../lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useAuth } from '../../../authContext';
+import { Download } from 'lucide-react';
 
 export default function DashboardUtama() {
   const { user } = useAuth();
@@ -94,7 +95,8 @@ export default function DashboardUtama() {
     const unsubPengaduan = onSnapshot(collection(db, 'pengaduan'), (snapshot) => {
       let pending = 0;
       snapshot.forEach(doc => {
-        if (doc.data().status === 'Menunggu') pending++;
+        const status = doc.data().status;
+        if (status === 'Menunggu' || status === 'Menunggu Respon') pending++;
       });
       setStats(s => ({ ...s, pengaduanPending: pending }));
       setLoading(false);
@@ -108,6 +110,10 @@ export default function DashboardUtama() {
       unsubPengaduan();
     };
   }, []);
+
+  const handleExportChart = () => {
+    exportToCSV(chartData, 'Analisis_Keuangan_Bulanan');
+  };
 
   if (loading) {
     return (
@@ -228,7 +234,7 @@ export default function DashboardUtama() {
                     <h4 className="text-xl font-black text-slate-800 tracking-tight">Dinamika Keuangan</h4>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Cash Flow Analytics (Monthly)</p>
                   </div>
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 items-center">
                     <div className="flex items-center gap-2">
                        <div className="w-3 h-3 rounded-full bg-blue-600 shadow-lg shadow-blue-600/20"></div>
                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Inflow</span>
@@ -237,6 +243,12 @@ export default function DashboardUtama() {
                        <div className="w-3 h-3 rounded-full bg-slate-300"></div>
                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Outflow</span>
                     </div>
+                    <button 
+                      onClick={handleExportChart}
+                      className="p-2 text-slate-400 hover:text-blue-600 transition-all hover:bg-slate-50 rounded-lg"
+                    >
+                      <Download size={16} />
+                    </button>
                   </div>
                 </div>
                 <div className="h-80 w-full">
@@ -264,7 +276,10 @@ export default function DashboardUtama() {
 
               {/* Quick Actions / Operational Alerts */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-rose-50 border border-rose-100 p-6 rounded-[1.5rem] flex items-center justify-between group cursor-pointer hover:bg-rose-100 transition-colors">
+                <div 
+                  onClick={() => window.dispatchEvent(new CustomEvent('app-change-module', { detail: { module: 'persediaan' } }))}
+                  className="bg-rose-50 border border-rose-100 p-6 rounded-[1.5rem] flex items-center justify-between group cursor-pointer hover:bg-rose-100 transition-colors"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-rose-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-600/20">
                       <AlertCircle size={24} />
@@ -276,7 +291,10 @@ export default function DashboardUtama() {
                   </div>
                   <ArrowUpRight className="text-rose-400 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </div>
-                <div className="bg-blue-50 border border-blue-100 p-6 rounded-[1.5rem] flex items-center justify-between group cursor-pointer hover:bg-blue-100 transition-colors">
+                <div 
+                  onClick={() => window.dispatchEvent(new CustomEvent('app-change-module', { detail: { module: 'operasional' } }))}
+                  className="bg-blue-50 border border-blue-100 p-6 rounded-[1.5rem] flex items-center justify-between group cursor-pointer hover:bg-blue-100 transition-colors"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
                       <MessageCircle size={24} />

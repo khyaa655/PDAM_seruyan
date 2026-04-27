@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { MessageCircle, Loader2, Search, Filter, CheckCircle2, AlertCircle, Clock, Download, User } from 'lucide-react';
+import { MessageCircle, Loader2, Search, Filter, CheckCircle2, AlertCircle, Clock, Download, User, Trash2 } from 'lucide-react';
 
 export default function Pengaduan() {
   const [pengaduan, setPengaduan] = useState<any[]>([]);
@@ -16,6 +16,15 @@ export default function Pengaduan() {
     });
     return () => unsub();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus pengaduan ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'pengaduan', id));
+    } catch (err: any) {
+      alert('Gagal menghapus pengaduan: ' + err.message);
+    }
+  };
 
   const filtered = pengaduan.filter(p => {
     const matchesSearch = (p.namaPelanggan || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -148,9 +157,15 @@ export default function Pengaduan() {
                       {p.status || 'Menunggu'}
                     </span>
                   </td>
-                  <td className="p-5 text-right">
+                  <td className="p-5 text-right flex justify-end gap-2">
                     <button className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 active:scale-95">
                       Detail
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(p.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>

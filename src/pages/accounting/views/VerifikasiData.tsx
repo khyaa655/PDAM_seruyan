@@ -1,16 +1,68 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Loader2, Search, Filter, CheckCircle, XCircle, Clock, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../firebase';
+import { ShieldCheck, Loader2, Search, Filter, CheckCircle, XCircle, Clock, Info, AlertTriangle } from 'lucide-react';
+import { formatCurrency } from '../../../lib/utils';
+import { useAuth } from '../../../authContext';
 
 export default function VerifikasiData() {
-  const [loading, setLoading] = useState(false);
+  const { user: currentUser } = useAuth();
+  const [pendingData, setPendingData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [counts, setCounts] = useState({ pending: 0, verified: 0 });
 
-  // Mock data for verification
-  const pendingData = [
-    { id: '1', type: 'Jurnal Umum', ref: 'JU-2026-001', amount: 25000000, user: 'Admin Staff', date: '2026-04-27' },
-    { id: '2', type: 'Hutang AP', ref: 'AP-2026-042', amount: 12000000, user: 'Finance', date: '2026-04-26' },
-    { id: '3', type: 'Aset Tetap', ref: 'AST-2026-005', amount: 45000000, user: 'Procurement', date: '2026-04-26' },
-  ];
+  useEffect(() => {
+    // Listen for pending transactions
+    const q = query(collection(db, 'transactions'), where('status', '==', 'pending'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setPendingData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setCounts(prev => ({ ...prev, pending: snapshot.size }));
+      setLoading(false);
+    });
+
+    // Count verified today (simplified: just count all for now or filter by date if possible)
+    // For now we just use the pending count
+    return () => unsub();
+  }, []);
+
+  const handleVerify = async (id: string) => {
+    if (!confirm('Verifikasi transaksi ini?')) return;
+    try {
+      await updateDoc(doc(db, 'transactions', id), {
+        status: 'verified',
+        verifiedBy: currentUser?.id,
+        verifiedByName: currentUser?.name,
+        verifiedAt: serverTimestamp()
+      });
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { title: 'Transaksi Diverifikasi', message: 'Data telah resmi masuk ke laporan keuangan.', type: 'success' }
+      }));
+    } catch (err: any) {
+      alert('Gagal memverifikasi: ' + err.message);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    const reason = prompt('Alasan penolakan:');
+    if (reason === null) return;
+    try {
+      await updateDoc(doc(db, 'transactions', id), {
+        status: 'rejected',
+        rejectionReason: reason,
+        rejectedBy: currentUser?.id,
+        rejectedAt: serverTimestamp()
+      });
+    } catch (err: any) {
+      alert('Gagal menolak: ' + err.message);
+    }
+  };
+
+  const filtered = pendingData.filter(item => 
+    (item.reference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-blue-600 mb-4" />Memuat Antrian Verifikasi...</div>;
 
@@ -31,7 +83,7 @@ export default function VerifikasiData() {
           </div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Menunggu Otorisasi</p>
-            <p className="text-2xl font-black text-slate-800">{pendingData.length} <span className="text-sm text-slate-400 font-bold uppercase">Dokumen</span></p>
+            <p className="text-2xl font-black text-slate-800">{counts.pending} <span className="text-sm text-slate-400 font-bold uppercase">Dokumen</span></p>
           </div>
         </div>
         
@@ -40,18 +92,18 @@ export default function VerifikasiData() {
             <CheckCircle size={28} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Terverifikasi Hari Ini</p>
-            <p className="text-2xl font-black text-slate-800">12</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Integritas Sistem</p>
+            <p className="text-2xl font-black text-slate-800">100%</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 text-slate-400 opacity-60">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 text-slate-400">
           <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center shrink-0">
             <ShieldCheck size={28} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Integritas Data</p>
-            <p className="text-sm font-black uppercase">100% Validated</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sistem Keamanan</p>
+            <p className="text-sm font-black uppercase tracking-widest">Active Protection</p>
           </div>
         </div>
       </div>
@@ -68,41 +120,46 @@ export default function VerifikasiData() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-sm bg-white"
             />
           </div>
-          <div className="flex gap-2">
-            <button className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm text-xs uppercase tracking-widest">
-              <Filter size={16} /> Filter Tipe
-            </button>
-          </div>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-white text-slate-400 font-black uppercase tracking-widest text-[10px] border-b border-slate-100">
               <tr>
-                <th className="p-5">Tipe Dokumen</th>
-                <th className="p-5">Nomor Referensi</th>
+                <th className="p-5">Tipe & Akun</th>
+                <th className="p-5">Deskripsi / Ref</th>
+                <th className="p-5 text-right">Nilai (Rp)</th>
                 <th className="p-5">Penginput</th>
-                <th className="p-5 text-center">Tanggal</th>
-                <th className="p-5 text-right">Aksi Otorisasi</th>
+                <th className="p-5 text-center">Tgl Input</th>
+                <th className="p-5 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pendingData.length === 0 ? (
-                <tr><td colSpan={5} className="p-20 text-center text-slate-400 font-medium italic">Antrian verifikasi kosong.</td></tr>
-              ) : pendingData.map(item => (
+              {filtered.length === 0 ? (
+                <tr><td colSpan={6} className="p-20 text-center text-slate-400 font-medium italic">Tidak ada transaksi yang menunggu verifikasi.</td></tr>
+              ) : filtered.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="p-5">
-                    <span className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                      {item.type}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="px-2 py-0.5 w-fit bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-wider mb-1">
+                        {item.type === 'income' ? 'DEBIT' : 'KREDIT'}
+                      </span>
+                      <p className="font-bold text-slate-700">{item.category}</p>
+                    </div>
                   </td>
                   <td className="p-5">
-                    <p className="font-black text-slate-800">{item.ref}</p>
+                    <p className="font-black text-slate-800">{item.description}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.reference}</p>
+                  </td>
+                  <td className="p-5 text-right font-black text-slate-900">
+                    {formatCurrency(item.amount)}
                   </td>
                   <td className="p-5">
                     <div className="flex items-center gap-2">
-                       <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">{item.user.substring(0, 1)}</div>
-                       <span className="font-bold text-slate-600">{item.user}</span>
+                       <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
+                         {(item.authorName || 'U').substring(0, 1)}
+                       </div>
+                       <span className="font-bold text-slate-600">{item.authorName || 'User System'}</span>
                     </div>
                   </td>
                   <td className="p-5 text-center text-slate-400 font-bold text-xs">
@@ -110,14 +167,19 @@ export default function VerifikasiData() {
                   </td>
                   <td className="p-5 text-right">
                     <div className="flex justify-end gap-2">
-                      <button className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100" title="Reject">
+                      <button 
+                        onClick={() => handleReject(item.id)}
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100" 
+                        title="Reject"
+                      >
                         <XCircle size={20} />
                       </button>
-                      <button className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all border border-transparent hover:border-emerald-100" title="Verify">
+                      <button 
+                        onClick={() => handleVerify(item.id)}
+                        className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all border border-transparent hover:border-emerald-100" 
+                        title="Verify"
+                      >
                         <CheckCircle size={20} />
-                      </button>
-                      <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-200" title="Details">
-                        <Info size={20} />
                       </button>
                     </div>
                   </td>

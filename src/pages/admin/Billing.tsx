@@ -24,7 +24,7 @@ export default function Billing() {
             <Filter size={16} />
             {t('admin.billing.filter')}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
+          <button className="flex items-center gap-2 px-4 py-2 bg-[#00478d] text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
             <Download size={16} />
             {t('user.billing.download')}
           </button>
@@ -32,7 +32,7 @@ export default function Billing() {
       </header>
 
       {/* Revenue Card */}
-      <section className="bg-gradient-to-br from-tertiary to-tertiary-container rounded-[2.5rem] p-8 text-white shadow-xl shadow-tertiary/20">
+      <section className="bg-gradient-to-br from-[#00478d] to-[#005eb8] rounded-[2.5rem] p-8 text-white shadow-xl shadow-[#00478d]/20">
         <div className="flex justify-between items-start">
           <div>
             <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-2">{t('admin.billing.monthly')}</p>
@@ -72,8 +72,8 @@ export default function Billing() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold text-primary">{tx.amount}</p>
-                <button className="text-[10px] font-bold text-slate-400 hover:text-primary uppercase tracking-widest">{t('common.details')}</button>
+                <p className="text-sm font-bold text-[#00478d]">{tx.amount}</p>
+                <button className="text-[10px] font-bold text-slate-400 hover:text-[#00478d] uppercase tracking-widest">{t('common.details')}</button>
               </div>
             </motion.div>
           ))}
