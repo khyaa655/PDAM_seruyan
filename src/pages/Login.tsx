@@ -9,11 +9,9 @@ import {
   Mail, 
   Lock, 
   ArrowLeft, 
-  User as UserCircle, 
   CircleAlert, 
   CheckCircle2, 
   Loader2,
-  Phone,
   MessageSquare,
   KeyRound,
   Eye,
@@ -25,7 +23,7 @@ import { useLanguage } from '../languageContext';
 import LanguageToggle from '../components/LanguageToggle';
 
 type Step = 'role' | 'login' | 'forgot-password' | 'verify-code' | 'reset-password' | 'reset-success' | 'pending-info';
-type Role = 'admin' | 'staff';
+type Role = 'admin' | 'staff' | 'direktur';
 
 export default function Login() {
   const { user, login, verifyCode, sendPasswordReset, confirmNewPassword } = useAuth();
@@ -42,7 +40,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Handle Firebase action codes (oobCode) from email
   React.useEffect(() => {
     const mode = searchParams.get('mode');
     const oobCode = searchParams.get('oobCode');
@@ -59,6 +56,7 @@ export default function Login() {
   if (user) {
     if (user.role === 'admin') return <Navigate to="/admin" replace />;
     if (user.role === 'staff') return <Navigate to="/staff" replace />;
+    if (user.role === 'direktur') return <Navigate to="/accounting" replace />;
     return <Navigate to="/login" replace />;
   }
 
@@ -79,7 +77,6 @@ export default function Login() {
             setError(result.message || 'Login failed');
           }
         }
-
       } else if (step === 'verify-code') {
         const result = await verifyCode(emailOrPhone, vCode);
         if (!result.success) {
@@ -112,8 +109,6 @@ export default function Login() {
     }
   };
 
-
-
   const getRoleLabel = (role: Role) => role.charAt(0).toUpperCase() + role.slice(1);
 
   return (
@@ -121,7 +116,6 @@ export default function Login() {
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-secondary/20 rounded-full blur-[100px] pointer-events-none" />
       
-      {/* Language Toggle */}
       <div className="absolute top-8 right-8 z-50">
         <LanguageToggle />
       </div>
@@ -162,6 +156,15 @@ export default function Login() {
                     <div className="text-left">
                       <span className="block font-bold text-slate-800">{t('login.role.staff.title')}</span>
                       <span className="text-xs text-slate-500">{t('login.role.staff.desc')}</span>
+                    </div>
+                  </button>
+                  <button onClick={() => { setSelectedRole('direktur'); setStep('login'); }} className="group flex items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-primary/50 transition-all bg-white">
+                    <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                      <UserIcon size={24} />
+                    </div>
+                    <div className="text-left">
+                      <span className="block font-bold text-slate-800">Direktur</span>
+                      <span className="text-xs text-slate-500">Akses Akuntansi</span>
                     </div>
                   </button>
                 </div>
@@ -384,8 +387,6 @@ export default function Login() {
               )}
 
               <form onSubmit={handleFormSubmit} className="space-y-4">
-
-                
                 <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-600 ml-1">
                       {step === 'login' ? t('login.label.identity') : t('login.label.email')}
@@ -405,8 +406,6 @@ export default function Login() {
                     />
                   </div>
                 </div>
-
-
 
                 {step !== 'forgot-password' && (
                   <div className="space-y-1">
@@ -452,8 +451,6 @@ export default function Login() {
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (step === 'login' ? t('login.button.signin') : 'Send Instructions')}
                 </button>
               </form>
-
-
 
               <div className="mt-6 text-center text-sm text-slate-500">
                 {step === 'login' ? null : (

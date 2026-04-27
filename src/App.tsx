@@ -7,6 +7,8 @@ import AdminDashboard from './pages/admin/Dashboard';
 import StaffDashboard from './pages/staff/Tasks';
 import MeterReading from './pages/staff/MeterReading';
 import DisconnectionFlow from './pages/staff/DisconnectionFlow';
+// PERBAIKAN: Import menggunakan 'dashboard' (huruf kecil) agar tidak bentrok
+import AccountingDashboard from './pages/accounting/dashboard'; 
 
 import { TaskProvider } from './taskContext';
 import { LanguageProvider } from './languageContext';
@@ -27,6 +29,15 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/accounting/*" 
+            element={
+              <ProtectedRoute allowedRoles={['direktur']}>
+                <AccountingDashboard />
               </ProtectedRoute>
             } 
           />

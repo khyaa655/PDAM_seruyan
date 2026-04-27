@@ -1,13 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Task } from './types';
-import { db } from './firebase'; // Pastikan path ini benar (biasanya './firebase' jika sejajar)
-import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase'; 
+import { collection, onSnapshot, doc, setDoc, updateDoc, query } from 'firebase/firestore';
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  status: 'pending' | 'assigned' | 'in-progress' | 'completed';
+  assignedTo: string | null;
+  createdAt: string;
+}
 
 interface TaskContextType {
   tasks: Task[];
-  createTask: (task: Omit<Task, 'id' | 'status' | 'completedAt'>) => void;
-  assignTask: (taskId: string, staffId: string) => void;
-  updateTaskStatus: (taskId: string, status: Task['status'], report?: Task['report']) => void;
+  createTask: (taskData: any) => Promise<void>;
+  assignTask: (taskId: string, staffId: string) => Promise<void>;
+  updateTaskStatus: (taskId: string, status: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -17,38 +26,48 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Ambil data Perintah Kerja secara REAL-TIME dari Firebase
   useEffect(() => {
+    // Listener tanpa orderBy dulu agar tidak nyangkut di masalah Index
     const unsubscribe = onSnapshot(collection(db, 'tasks'), (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Task[];
+      const tasksData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // Paksa category jadi huruf kecil agar filter UI tidak meleset
+          category: (data.category || 'perbaikan').toLowerCase()
+        };
+      }) as Task[];
+      
+      console.log("Data Firestore Terdeteksi:", tasksData.length);
       setTasks(tasksData);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
       setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // 2. Simpan Perintah Kerja baru ke Firebase (Dipanggil oleh Admin)
-  const createTask = async (taskData: Omit<Task, 'id' | 'status' | 'completedAt'>) => {
+  const createTask = async (taskData: any) => {
     try {
-      const newId = `TSK-${Math.floor(1000 + Math.random() * 9000)}`;
-      const newTask: Task = {
-        ...taskData,
+      const newId = `TSK-${Date.now()}`;
+      const newTask = {
         id: newId,
-        status: 'pending'
+        title: taskData.title || 'Perbaikan Baru',
+        description: taskData.description || '',
+        category: (taskData.category || 'perbaikan').toLowerCase(),
+        status: 'pending',
+        assignedTo: null,
+        createdAt: new Date().toISOString()
       };
-      
-      // Kirim data ke Firestore collection 'tasks'
       await setDoc(doc(db, 'tasks', newId), newTask);
     } catch (error) {
-      console.error("Gagal membuat tugas di Firebase: ", error);
+      console.error("Gagal buat tugas:", error);
     }
   };
 
-  // 3. Update staff yang ditugaskan ke Firebase
   const assignTask = async (taskId: string, staffId: string) => {
     try {
       await updateDoc(doc(db, 'tasks', taskId), {
@@ -56,20 +75,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         assignedTo: staffId
       });
     } catch (error) {
-      console.error("Gagal assign tugas: ", error);
+      console.error("Gagal assign:", error);
     }
   };
 
-  // 4. Update status (Selesai/Diproses) ke Firebase
-  const updateTaskStatus = async (taskId: string, status: Task['status'], report?: Task['report']) => {
+  const updateTaskStatus = async (taskId: string, status: string) => {
     try {
-      const updateData: any = { status };
-      if (report) updateData.report = report;
-      if (status === 'completed') updateData.completedAt = new Date().toISOString();
-      
-      await updateDoc(doc(db, 'tasks', taskId), updateData);
+      await updateDoc(doc(db, 'tasks', taskId), { status });
     } catch (error) {
-      console.error("Gagal update status tugas: ", error);
+      console.error("Gagal update status:", error);
     }
   };
 
@@ -80,10 +94,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useTasks() {
+export const useTasks = () => {
   const context = useContext(TaskContext);
-  if (context === undefined) {
-    throw new Error('useTasks must be used within a TaskProvider');
-  }
+  if (!context) throw new Error('useTasks must be used within TaskProvider');
   return context;
-}
+};

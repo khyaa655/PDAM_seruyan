@@ -21,7 +21,8 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect to their own dashboard if they try to access unauthorized area
+    // Redirect ke dashboard masing-masing jika role tidak cocok
+    if (user.role === 'direktur') return <Navigate to="/accounting" replace />;
     return <Navigate to={`/${user.role}`} replace />;
   }
 
