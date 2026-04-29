@@ -29,7 +29,7 @@ type Tab = 'repair' | 'reading' | 'disconnection';
 
 export default function StaffDashboard() {
   const { user, logout } = useAuth();
-  const { tasks } = useTasks();
+  const { tasks, updateTaskStatus } = useTasks();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('repair');
@@ -41,6 +41,19 @@ export default function StaffDashboard() {
      if (activeTab === 'repair') return t.type === 'repair';
      if (activeTab === 'reading') return t.type === 'reading';
      return t.type === 'disconnection';
+  }).sort((a, b) => {
+    // Urutan: in-progress -> assigned/pending -> completed
+    const statusOrder: Record<string, number> = {
+      'in-progress': 0,
+      'assigned': 1,
+      'pending': 1,
+      'completed': 2
+    };
+    
+    const orderA = statusOrder[a.status] ?? 1;
+    const orderB = statusOrder[b.status] ?? 1;
+    
+    return orderA - orderB;
   });
 
   const stats = {
@@ -52,11 +65,8 @@ export default function StaffDashboard() {
   // FUNGSI 1: Memulai Pekerjaan
   const handleStartTask = async (task: any) => {
     try {
-      const taskRef = doc(db, 'tasks', task.id);
-      await updateDoc(taskRef, {
-        status: 'in-progress' // Mengubah status menjadi sedang dikerjakan
-      });
-      alert('Pekerjaan dimulai! Silakan kerjakan tugas sesuai SOP.');
+      await updateTaskStatus(task.id, 'in-progress');
+      // alert('Pekerjaan dimulai! Silakan kerjakan tugas sesuai SOP.');
     } catch (error) {
       console.error(error);
       alert('Gagal memulai pekerjaan');
@@ -215,9 +225,17 @@ export default function StaffDashboard() {
                         {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
                         {task.type === 'repair' && `Perbaikan: ${task.reason?.split('-')[0] || 'Laporan Masuk'}`}
                       </h4>
-                      <p className="text-sm text-slate-500">{task.district} • {task.location}</p>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center gap-1.5 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+                          <MapPin size={12} /> {task.district || 'Wilayah Seruyan'}
+                        </div>
+                        <p className="text-sm text-slate-600 font-bold leading-tight bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-start gap-2">
+                           <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#00478d] flex-shrink-0" />
+                           {task.location || 'Alamat tidak spesifik'}
+                        </p>
+                      </div>
                       {task.reason && (
-                         <div className="mt-2 flex items-center gap-2 text-xs text-amber-600 font-bold bg-amber-50 w-fit px-2 py-1 rounded-lg">
+                         <div className="mt-3 flex items-center gap-2 text-xs text-amber-600 font-bold bg-amber-50 w-fit px-2 py-1.5 rounded-xl border border-amber-100/50">
                             <AlertTriangle size={12} /> {task.reason}
                          </div>
                       )}
@@ -253,6 +271,7 @@ export default function StaffDashboard() {
                         ) : (
                            <button 
                              onClick={() => {
+                                updateTaskStatus(task.id, 'in-progress');
                                 if (task.type === 'reading') navigate(`/staff/meter-reading?taskId=${task.id}`);
                                 else if (task.type === 'disconnection') navigate(`/staff/disconnection/${task.id}`);
                                 else handleStartTask(task);
