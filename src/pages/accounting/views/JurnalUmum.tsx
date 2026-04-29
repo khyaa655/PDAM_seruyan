@@ -15,6 +15,7 @@ export default function JurnalUmum() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Semua Jurnal');
   const [showFilter, setShowFilter] = useState(false);
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
   const [filterDates, setFilterDates] = useState({ start: '', end: '' });
 
   // Form State
@@ -23,7 +24,10 @@ export default function JurnalUmum() {
     reference: '',
     description: '',
   });
-  const [rows, setRows] = useState([{ id: 1, account: '', debit: '', kredit: '' }]);
+  const [rows, setRows] = useState([
+    { id: 1, account: '', debit: '', kredit: '', type: 'debit' },
+    { id: 2, account: '', debit: '', kredit: '', type: 'kredit' }
+  ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function JurnalUmum() {
       alert('Jurnal tidak seimbang. Pastikan Total Debit = Total Kredit.');
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       const batchPromises = rows.map(row => {
@@ -112,7 +116,10 @@ export default function JurnalUmum() {
 
       setShowAddForm(false);
       setFormData({ date: new Date().toISOString().split('T')[0], reference: '', description: '' });
-      setRows([{ id: 1, account: '', debit: '', kredit: '' }]);
+      setRows([
+        { id: 1, account: '', debit: '', kredit: '', type: 'debit' },
+        { id: 2, account: '', debit: '', kredit: '', type: 'kredit' }
+      ]);
     } catch (err: any) {
       console.error(err);
       alert('Gagal menambahkan jurnal: ' + err.message);
@@ -130,25 +137,35 @@ export default function JurnalUmum() {
     }
   };
 
-  const addRow = () => {
-    setRows([...rows, { id: Date.now(), account: '', debit: '', kredit: '' }]);
+  const addRow = (type: string = 'any') => {
+    setRows([...rows, { id: Date.now(), account: '', debit: '', kredit: '', type }]);
+    setShowAddDropdown(false);
   };
 
   const updateRow = (id: number, field: string, value: string) => {
-    setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+    setRows(rows.map(row => {
+      if (row.id === id) {
+        const updatedRow = { ...row, [field]: value };
+        // Jika debit diisi, kosongkan kredit. Jika kredit diisi, kosongkan debit.
+        if (field === 'debit' && value !== '') updatedRow.kredit = '';
+        if (field === 'kredit' && value !== '') updatedRow.debit = '';
+        return updatedRow;
+      }
+      return row;
+    }));
   };
 
   const removeRow = (id: number) => {
-    if (rows.length > 1) {
+    if (rows.length > 2) {
       setRows(rows.filter(row => row.id !== id));
     }
   };
 
   const filteredTx = transactions.filter(t => {
-    const matchSearch = t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        t.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        t.reference?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchSearch = t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.reference?.toLowerCase().includes(searchTerm.toLowerCase());
+
     let matchDate = true;
     if (filterDates.start) matchDate = matchDate && t.date >= filterDates.start;
     if (filterDates.end) matchDate = matchDate && t.date <= filterDates.end;
@@ -161,7 +178,7 @@ export default function JurnalUmum() {
     if (activeTab === 'Bank Masuk (JBM)') return matchSearch && t.type === 'income' && t.category?.includes('Bank');
     if (activeTab === 'Kas Keluar (JKK)') return matchSearch && t.type === 'expense';
     if (activeTab === 'Bank Keluar (JBK)') return matchSearch && t.type === 'expense' && t.category?.includes('Bank');
-    
+
     return matchSearch;
   });
 
@@ -197,9 +214,8 @@ export default function JurnalUmum() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`whitespace-nowrap px-6 py-3 font-medium text-sm transition-colors relative ${
-              activeTab === tab ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
+            className={`whitespace-nowrap px-6 py-3 font-medium text-sm transition-colors relative ${activeTab === tab ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
           >
             {tab}
             {activeTab === tab && (
@@ -213,28 +229,28 @@ export default function JurnalUmum() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Cari referensi atau keterangan" 
+          <input
+            type="text"
+            placeholder="Cari referensi atau keterangan"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-sm shadow-sm"
           />
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button 
+          <button
             onClick={() => setShowFilter(true)}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl border flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm transition-all ${filterDates.start || filterDates.end ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
           >
             <Filter size={18} /> {filterDates.start || filterDates.end ? 'Filter Aktif' : 'Filter'}
           </button>
-          <button 
+          <button
             onClick={handleExport}
             className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 font-medium text-sm bg-white shadow-sm"
           >
             <Download size={18} /> Export
           </button>
-          <button 
+          <button
             onClick={() => setShowAddForm(true)}
             className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
           >
@@ -269,35 +285,34 @@ export default function JurnalUmum() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredTx.map(t => (
-                  <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 text-slate-600">{t.date}</td>
-                    <td className="p-4 text-slate-600 font-mono text-xs">{t.reference || '-'}</td>
-                    <td className="p-4 font-medium text-slate-800">{t.description}</td>
-                    <td className="p-4 text-slate-600">
-                      <span className="bg-slate-100 px-2 py-1 rounded text-xs font-mono">{t.category || '-'}</span>
-                    </td>
-                    <td className="p-4 text-right font-medium text-slate-700">{t.type === 'income' ? formatCurrency(t.amount) : '-'}</td>
-                    <td className="p-4 text-right font-medium text-slate-700">{t.type === 'expense' ? formatCurrency(t.amount) : '-'}</td>
-                    <td className="p-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                        t.status === 'posted' ? 'bg-emerald-100 text-emerald-700' :
-                        t.status === 'verified' ? 'bg-blue-100 text-blue-700' :
-                        'bg-amber-100 text-amber-700'
-                      }`}>
-                        {t.status || 'pending'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => handleDelete(t.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                 {filteredTx.map(t => (
+                   <tr key={t.id} className="group hover:bg-slate-50 transition-colors">
+                     <td className="p-4 text-slate-600">{t.date}</td>
+                     <td className="p-4 text-slate-600 font-mono text-xs">{t.reference || '-'}</td>
+                     <td className="p-4 font-medium text-slate-800">{t.description}</td>
+                     <td className="p-4 text-slate-600">
+                       <span className="bg-slate-100 px-2 py-1 rounded text-xs font-mono">{t.category || '-'}</span>
+                     </td>
+                     <td className="p-4 text-right font-medium text-slate-700">{t.type === 'income' ? formatCurrency(t.amount) : '-'}</td>
+                     <td className="p-4 text-right font-medium text-slate-700">{t.type === 'expense' ? formatCurrency(t.amount) : '-'}</td>
+                     <td className="p-4 text-center">
+                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${t.status === 'posted' ? 'bg-emerald-100 text-emerald-700' :
+                           t.status === 'verified' ? 'bg-blue-100 text-blue-700' :
+                             'bg-amber-100 text-amber-700'
+                         }`}>
+                         {t.status || 'pending'}
+                       </span>
+                     </td>
+                     <td className="p-4 text-right">
+                       <button
+                         onClick={() => handleDelete(t.id)}
+                         className="text-slate-300 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-all"
+                       >
+                         <Trash2 size={18} />
+                       </button>
+                     </td>
+                   </tr>
+                 ))}
               </tbody>
             </table>
           </div>
@@ -314,63 +329,125 @@ export default function JurnalUmum() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal</label>
-                  <input type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
+                  <input type="date" required value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">No. Referensi</label>
-                  <input type="text" placeholder="Contoh: BKM-001" value={formData.reference} onChange={e => setFormData({...formData, reference: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
+                  <input type="text" placeholder="Contoh: BKM-001" value={formData.reference} onChange={e => setFormData({ ...formData, reference: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
                 </div>
               </div>
-              
+
               <div className="space-y-1.5 mb-8">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Keterangan</label>
-                <input type="text" required placeholder="Deskripsi transaksi..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
+                <input type="text" required placeholder="Deskripsi transaksi..." value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
               </div>
 
-              <div className="mb-4 flex justify-between items-end">
+              <div className="mb-4 flex justify-between items-end relative">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Input Akun & Nilai</label>
-                <button type="button" onClick={addRow} className="text-blue-600 text-sm font-bold flex items-center gap-1 hover:text-blue-700">
-                  <Plus size={16} /> Tambah Baris
-                </button>
+                <div className="relative">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAddDropdown(!showAddDropdown)} 
+                    className="text-blue-600 text-sm font-bold flex items-center gap-1 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <Plus size={16} /> Tambah Baris
+                  </button>
+                  
+                  {showAddDropdown && (
+                    <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button 
+                        type="button"
+                        onClick={() => addRow('debit')}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-2"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        Tambah Debit
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => addRow('kredit')}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition-colors flex items-center gap-2"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                        Tambah Kredit
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3 mb-6">
                 {rows.map((row) => (
                   <div key={row.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                    <select 
-                      required 
-                      value={row.account} 
-                      onChange={e => updateRow(row.id, 'account', e.target.value)} 
+                    <select
+                      required
+                      value={row.account}
+                      onChange={e => updateRow(row.id, 'account', e.target.value)}
                       className="w-full sm:w-[40%] p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all bg-white"
                     >
                       <option value="">Pilih Akun...</option>
                       {coa.map(c => (
-                        <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+                        <option 
+                          key={c.id} 
+                          value={c.code} 
+                          disabled={c.level < 3}
+                          className={c.level < 3 ? 'font-bold text-slate-900 bg-slate-50' : ''}
+                        >
+                          {c.level === 2 ? '　' : c.level === 3 ? '　　' : ''}
+                          {c.code} - {c.name}
+                        </option>
                       ))}
                     </select>
                     <div className="flex gap-3 w-full sm:w-[60%] relative">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        placeholder="Debit" 
-                        value={row.debit} 
-                        onChange={e => updateRow(row.id, 'debit', e.target.value)} 
-                        className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-right" 
-                      />
-                      <input 
-                        type="number" 
-                        min="0" 
-                        placeholder="Kredit" 
-                        value={row.kredit} 
-                        onChange={e => updateRow(row.id, 'kredit', e.target.value)} 
-                        className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-right" 
-                      />
-                      {rows.length > 1 && (
+                      {row.type === 'debit' && (
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Debit"
+                          value={row.debit}
+                          onChange={e => updateRow(row.id, 'debit', e.target.value)}
+                          className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-right"
+                        />
+                      )}
+
+                      {row.type === 'kredit' && (
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Kredit"
+                          value={row.kredit}
+                          onChange={e => updateRow(row.id, 'kredit', e.target.value)}
+                          className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-right"
+                        />
+                      )}
+
+                      {row.type === 'any' && (
+                        <>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Debit"
+                            value={row.debit}
+                            onChange={e => updateRow(row.id, 'debit', e.target.value)}
+                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-right"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Kredit"
+                            value={row.kredit}
+                            onChange={e => updateRow(row.id, 'kredit', e.target.value)}
+                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-right"
+                          />
+                        </>
+                      )}
+
+                      {rows.length > 2 && (
                         <button type="button" onClick={() => removeRow(row.id)} className="absolute -right-8 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500 transition-colors">
                           <X size={20} />
                         </button>
@@ -392,14 +469,14 @@ export default function JurnalUmum() {
                     <span className="text-rose-500 text-xs font-bold flex items-center gap-1">⚠ Jurnal belum seimbang atau kosong.</span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 sm:flex-none px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">
                     Batal
                   </button>
-                  <button 
-                    disabled={isSubmitting || !isBalanced} 
-                    type="submit" 
+                  <button
+                    disabled={isSubmitting || !isBalanced}
+                    type="submit"
                     className="flex-1 sm:flex-none bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20"
                   >
                     {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Simpan Transaksi'}
@@ -423,20 +500,20 @@ export default function JurnalUmum() {
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Mulai</label>
-                <input type="date" value={filterDates.start} onChange={e => setFilterDates({...filterDates, start: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
+                <input type="date" value={filterDates.start} onChange={e => setFilterDates({ ...filterDates, start: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Selesai</label>
-                <input type="date" value={filterDates.end} onChange={e => setFilterDates({...filterDates, end: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
+                <input type="date" value={filterDates.end} onChange={e => setFilterDates({ ...filterDates, end: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
               </div>
               <div className="flex gap-3 pt-4">
-                <button 
+                <button
                   onClick={() => { setFilterDates({ start: '', end: '' }); setShowFilter(false); }}
                   className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
                 >
                   Reset
                 </button>
-                <button 
+                <button
                   onClick={() => setShowFilter(false)}
                   className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
                 >
