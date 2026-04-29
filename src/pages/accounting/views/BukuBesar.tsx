@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { formatCurrency, exportToCSV } from '../../../lib/utils';
-import { Book, Loader2, Filter, Search, Plus, Download, X, Layers, Calendar, Trash2 } from 'lucide-react';
+import { Book, Loader2, Filter, Search, Plus, Download, X, Layers, Calendar, Trash2, Pencil } from 'lucide-react';
 
 export default function BukuBesar() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -21,6 +21,7 @@ export default function BukuBesar() {
     type: 'ASSET',
     level: 1
   });
+  const [editingCoa, setEditingCoa] = useState<any>(null);
   const tabs = ["Daftar Akun (COA)", "Buku Besar Per Akun"];
 
   useEffect(() => {
@@ -51,15 +52,25 @@ export default function BukuBesar() {
   const handleAddCoa = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'coa'), {
-        ...coaForm,
-        level: Number(coaForm.level),
-        createdAt: serverTimestamp()
-      });
+      if (editingCoa) {
+        const { id, ...updateData } = coaForm as any;
+        await updateDoc(doc(db, 'coa', editingCoa.id), {
+          ...updateData,
+          level: Number(coaForm.level),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await addDoc(collection(db, 'coa'), {
+          ...coaForm,
+          level: Number(coaForm.level),
+          createdAt: serverTimestamp()
+        });
+      }
       setShowAddForm(false);
+      setEditingCoa(null);
       setCoaForm({ code: '', name: '', type: 'ASSET', level: 1 });
     } catch (err: any) {
-      alert('Gagal menambah akun COA: ' + err.message);
+      alert('Gagal memproses akun COA: ' + err.message);
     }
   };
 
@@ -229,12 +240,31 @@ export default function BukuBesar() {
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <button 
-                          onClick={() => handleDeleteCoa(c.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-600 p-1.5 rounded-lg hover:bg-rose-100"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => {
+                              setEditingCoa(c);
+                              setCoaForm({
+                                code: c.code,
+                                name: c.name,
+                                type: c.type || 'ASSET',
+                                level: c.level
+                              });
+                              setShowAddForm(true);
+                            }}
+                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-all"
+                            title="Edit Akun"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteCoa(c.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-all"
+                            title="Hapus Akun"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -316,19 +346,19 @@ export default function BukuBesar() {
       {/* Modal Tambah COA */}
       {showAddForm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddForm(false)} />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowAddForm(false); setEditingCoa(null); setCoaForm({ code: '', name: '', type: 'ASSET', level: 1 }); }} />
           <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in duration-300">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
-                  <Layers size={20} />
+                <div className={`w-10 h-10 ${editingCoa ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'} rounded-2xl flex items-center justify-center`}>
+                  {editingCoa ? <Pencil size={20} /> : <Layers size={20} />}
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-800 uppercase tracking-tight">Tambah Akun</h3>
+                  <h3 className="font-black text-slate-800 uppercase tracking-tight">{editingCoa ? 'Edit Akun' : 'Tambah Akun'}</h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chart of Accounts</p>
                 </div>
               </div>
-              <button onClick={() => setShowAddForm(false)} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-400 hover:text-slate-600 shadow-sm border border-transparent hover:border-slate-100">
+              <button onClick={() => { setShowAddForm(false); setEditingCoa(null); setCoaForm({ code: '', name: '', type: 'ASSET', level: 1 }); }} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-400 hover:text-slate-600 shadow-sm border border-transparent hover:border-slate-100">
                 <X size={20} />
               </button>
             </div>
@@ -389,9 +419,9 @@ export default function BukuBesar() {
 
               <button 
                 type="submit" 
-                className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-[0.98] mt-4"
+                className={`w-full ${editingCoa ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'} text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] mt-4`}
               >
-                Simpan Akun
+                {editingCoa ? 'Simpan Perubahan' : 'Simpan Akun'}
               </button>
             </form>
           </div>
