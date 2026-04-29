@@ -44,9 +44,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       const newId = `TSK-${Date.now()}`;
       const newTask = {
         id: newId,
-        status: 'pending',
-        assignedTo: null,
         createdAt: new Date().toISOString(),
+        status: taskData.assignedTo ? 'assigned' : 'pending',
+        assignedTo: taskData.assignedTo || null,
         ...taskData
       };
       await setDoc(doc(db, 'tasks', newId), newTask);

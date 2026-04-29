@@ -1,34 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ConnectionRequest } from './types';
 import { useTasks } from './taskContext';
+import { db } from './firebase';
+import { collection, onSnapshot, doc, updateDoc, query, orderBy, addDoc, setDoc } from 'firebase/firestore';
 
 interface RequestContextType {
   requests: ConnectionRequest[];
-  approveRequest: (id: string, staffId?: string) => void;
-  rejectRequest: (id: string) => void;
+  approveRequest: (id: string, staffId?: string) => Promise<void>;
+  rejectRequest: (id: string) => Promise<void>;
   isLoading: boolean;
 }
 
 const RequestContext = createContext<RequestContextType | undefined>(undefined);
-
-const INITIAL_REQUESTS: ConnectionRequest[] = [
-  {
-    id: 'REQ-001',
-    name: 'Ahmad Faisal',
-    phone: '081234567890',
-    address: 'Jl. Pemuda No. 12, Seruyan',
-    status: 'pending',
-    date: new Date().toISOString()
-  },
-  {
-    id: 'REQ-002',
-    name: 'Siti Aminah',
-    phone: '085712345678',
-    address: 'Komp. Beringin Blok B2',
-    status: 'approved',
-    date: new Date(Date.now() - 86400000).toISOString()
-  }
-];
 
 export function RequestProvider({ children }: { children: React.ReactNode }) {
   const [requests, setRequests] = useState<ConnectionRequest[]>([]);
@@ -36,48 +19,120 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
   const { createTask } = useTasks();
 
   useEffect(() => {
-    const storedRequests = localStorage.getItem('seruyan_db_requests');
-    if (storedRequests) {
-      setRequests(JSON.parse(storedRequests));
-    } else {
-      setRequests(INITIAL_REQUESTS);
-      localStorage.setItem('seruyan_db_requests', JSON.stringify(INITIAL_REQUESTS));
-    }
-    setIsLoading(false);
+    const q = query(collection(db, 'tb_permohonan'), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (snapshot.empty) {
+        // Seed data jika kosong (Data Contoh)
+        const seedData = [
+          {
+            name: 'Rahmat Hidayat',
+            phone: '081255566677',
+            address: 'Jl. Tjilik Riwut No. 45, Kuala Pembuang',
+            status: 'pending',
+            date: new Date(Date.now() - 3600000 * 2).toISOString()
+          },
+          {
+            name: 'Sari Puspita',
+            phone: '085244433322',
+            address: 'Perumahan Seruyan Asri Blok C-12',
+            status: 'pending',
+            date: new Date(Date.now() - 3600000 * 24).toISOString()
+          },
+          {
+            name: 'Budi Santoso',
+            phone: '081399988877',
+            address: 'Jl. Ahmad Yani Gg. Merdeka No. 5',
+            status: 'pending',
+            date: new Date(Date.now() - 3600000 * 48).toISOString()
+          },
+          {
+            name: 'Dewi Lestari',
+            phone: '087711122233',
+            address: 'Jl. Jendral Sudirman KM 3.5',
+            status: 'pending',
+            date: new Date(Date.now() - 3600000 * 72).toISOString()
+          }
+        ];
+        
+        // Jalankan seeding secara async dengan logging error
+        seedData.forEach(async (data) => {
+          try {
+            await addDoc(collection(db, 'tb_permohonan'), data);
+            console.log("✅ Berhasil membuat data contoh permohonan");
+          } catch (e) {
+            console.error("❌ Gagal membuat data contoh permohonan. Periksa Security Rules!", e);
+          }
+        });
+      }
+
+      const permohonanData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ConnectionRequest[];
+      
+      setRequests(permohonanData);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Firestore Error in RequestContext:", error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem('seruyan_db_requests', JSON.stringify(requests));
+  const approveRequest = async (id: string, staffId?: string) => {
+    try {
+      const req = requests.find(r => r.id === id);
+      if (!req) throw new Error("Permohonan tidak ditemukan");
+
+      // 1. Update status di Firestore (tb_permohonan)
+      await updateDoc(doc(db, 'tb_permohonan', id), {
+        status: 'approved'
+      });
+
+      // 2. Tambahkan ke tb_pelanggan (Gunakan ID Permohonan sebagai Document ID agar tidak duplikat)
+      // Ini juga menghindari error "Missing Index" di Firestore
+      await setDoc(doc(db, 'tb_pelanggan', id), {
+        nama: req.name,
+        alamat: req.address,
+        noHp: req.phone,
+        status: 'Nonaktif',
+        role: 'pelanggan',
+        no_meter: '',
+        id_pelanggan: 'MENUNGGU PASANG',
+        createdAt: new Date().toISOString(),
+        permohonanId: id
+      }, { merge: true });
+
+      // 3. Create a new task automatically untuk Staff
+      await createTask({
+        title: `Pemasangan Baru: ${req.name}`, 
+        location: req.address,
+        district: 'Seruyan',
+        priority: 'normal',
+        type: 'new_connection',
+        customerName: req.name,
+        reason: 'Pemasangan Baru Sesuai Permohonan',
+        assignedTo: staffId,
+        deadline: 'CYCLE',
+        permohonanId: id
+      });
+
+    } catch (error: any) {
+      console.error("Gagal approve permohonan:", error);
+      throw error;
     }
-  }, [requests, isLoading]);
-
-  const approveRequest = (id: string, staffId?: string) => {
-    const req = requests.find(r => r.id === id);
-    if (!req) return;
-
-    // Update status
-    setRequests(prev => prev.map(r => 
-      r.id === id ? { ...r, status: 'approved' } : r
-    ));
-
-    // Create a new task automatically
-    createTask({
-      title: '', 
-      location: req.address,
-      district: 'Seruyan', // default district for now
-      priority: 'normal',
-      type: 'new_connection',
-      customerName: req.name,
-      reason: 'Pemasangan Baru Sesuai Permohonan',
-      assignedTo: staffId
-    });
   };
 
-  const rejectRequest = (id: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === id ? { ...r, status: 'rejected' } : r
-    ));
+  const rejectRequest = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'tb_permohonan', id), {
+        status: 'rejected'
+      });
+    } catch (error) {
+      console.error("Gagal reject permohonan:", error);
+      throw error;
+    }
   };
 
   return (

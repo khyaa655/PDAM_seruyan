@@ -138,8 +138,8 @@ const translations: Record<Language, Record<string, string>> = {
     'admin.tasks.deadline.urgent': 'Deadline 24 Jam',
     'admin.tasks.deadline.cycle': 'Jadwal Siklus',
 
-    'admin.sidebar.requests': 'Permohonon Baru',
-    'admin.requests.title': 'Permohonan Pasang Baru',
+    'admin.sidebar.requests': 'Permohonan Baru',
+    'admin.requests.title': 'Permohonan Baru',
     'admin.requests.subtitle': 'Tinjau dan proses pendaftaran pelanggan baru.',
     'admin.requests.table.details': 'Detail Pemohon',
     'admin.requests.table.contact': 'Kontak',

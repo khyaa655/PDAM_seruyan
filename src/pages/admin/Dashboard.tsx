@@ -86,8 +86,15 @@ export default function AdminDashboard() {
     district: '',
     priority: 'normal' as 'high' | 'normal',
     reason: '',
-    assignedTo: ''
+    assignedTo: '',
+    customerName: '',
+    customerPhone: '',
+    customerId: '',
+    permohonanId: ''
   });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'tb_pelanggan'), (snapshot) => {
@@ -141,6 +148,35 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleCustomerStatus = async (customerId: string, currentStatus: string) => {
+    try {
+      if (currentStatus === 'Nonaktif' || !currentStatus) {
+        const noMeter = window.prompt("Masukkan Nomor Meter untuk mengaktifkan pelanggan:");
+        if (noMeter === null) return; // User cancelled
+        
+        if (!noMeter.trim()) {
+          showNotification('Nomor Meter wajib diisi untuk mengaktifkan pelanggan', 'error');
+          return;
+        }
+
+        const docRef = doc(db, 'tb_pelanggan', customerId);
+        await updateDoc(docRef, { 
+          status: 'Aktif',
+          no_meter: noMeter.trim()
+        });
+        showNotification(`Pelanggan berhasil diaktifkan dengan No. Meter: ${noMeter}`, 'success');
+      } else {
+        if (window.confirm('Yakin ingin menonaktifkan pelanggan ini?')) {
+          const docRef = doc(db, 'tb_pelanggan', customerId);
+          await updateDoc(docRef, { status: 'Nonaktif' });
+          showNotification(`Status pelanggan berhasil diubah menjadi Nonaktif`, 'success');
+        }
+      }
+    } catch (error) {
+      showNotification('Gagal mengubah status pelanggan', 'error');
+    }
+  };
+
   // FITUR MEMBUAT PERINTAH KERJA MANUAL
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +187,24 @@ export default function AdminDashboard() {
       if (newTaskForm.type === 'disconnection') taskTitle = 'Pemutusan';
       if (newTaskForm.type === 'new_connection') taskTitle = 'Sambungan Baru';
 
+      let finalPermohonanId = newTaskForm.permohonanId;
+
+      // Jika sambungan baru manual (tidak pilih dari permohonan yang ada)
+      if (newTaskForm.type === 'new_connection' && !finalPermohonanId) {
+        const { addDoc, collection } = await import('firebase/firestore');
+        const newPelangganRef = await addDoc(collection(db, 'tb_pelanggan'), {
+          nama: newTaskForm.customerName,
+          alamat: newTaskForm.location,
+          noHp: newTaskForm.customerPhone,
+          status: 'Nonaktif',
+          role: 'pelanggan',
+          no_meter: '',
+          id_pelanggan: 'MENUNGGU PASANG',
+          createdAt: new Date().toISOString()
+        });
+        finalPermohonanId = newPelangganRef.id;
+      }
+
       await createTask({
         title: taskTitle,
         type: newTaskForm.type,
@@ -159,12 +213,26 @@ export default function AdminDashboard() {
         priority: newTaskForm.priority,
         reason: newTaskForm.reason,
         assignedTo: newTaskForm.assignedTo || undefined,
-        deadline: 'CYCLE'
+        deadline: 'CYCLE',
+        customerName: newTaskForm.customerName || undefined,
+        customerId: newTaskForm.customerId || undefined,
+        permohonanId: finalPermohonanId || undefined
       });
       
       showNotification('Perintah Kerja berhasil ditambahkan', 'success');
       setIsAddingTask(false);
-      setNewTaskForm({ type: 'repair', location: '', district: '', priority: 'normal', reason: '', assignedTo: '' });
+      setNewTaskForm({ 
+        type: 'repair', 
+        location: '', 
+        district: '', 
+        priority: 'normal', 
+        reason: '', 
+        assignedTo: '',
+        customerName: '',
+        customerPhone: '',
+        customerId: '',
+        permohonanId: ''
+      });
     } catch (error) {
       showNotification('Gagal menambahkan perintah kerja', 'error');
     }
@@ -316,20 +384,28 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-8 py-5 text-right">
                       {req.status === 'pending' && (
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <div className="flex justify-end gap-2 transition-all">
                           <button 
-                            onClick={() => {
-                              approveRequest(req.id);
-                              showNotification(t('admin.requests.status.approved'), 'success');
+                            onClick={async () => {
+                              try {
+                                await approveRequest(req.id);
+                                showNotification('Permohonan disetujui & tugas dibuat', 'success');
+                              } catch (e) {
+                                showNotification('Gagal memproses permohonan', 'error');
+                              }
                             }}
                             className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all font-bold text-xs"
                           >
                             {t('admin.requests.approve')}
                           </button>
                           <button 
-                            onClick={() => {
-                              rejectRequest(req.id);
-                              showNotification(t('admin.requests.status.rejected'), 'error');
+                            onClick={async () => {
+                              try {
+                                await rejectRequest(req.id);
+                                showNotification('Permohonan ditolak', 'info');
+                              } catch (e) {
+                                showNotification('Gagal memproses permohonan', 'error');
+                              }
                             }}
                             className="px-3 py-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-all font-bold text-xs"
                           >
@@ -454,9 +530,9 @@ export default function AdminDashboard() {
                           <span className="w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700">
                             PELANGGAN
                           </span>
-                          <div className="flex items-center gap-1.5 font-bold text-[10px] text-emerald-600">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                            ACTIVE
+                          <div className={`flex items-center gap-1.5 font-bold text-[10px] ${(c.status || 'Aktif') === 'Aktif' ? 'text-emerald-600' : 'text-amber-500'}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${(c.status || 'Aktif') === 'Aktif' ? 'bg-emerald-500' : 'bg-amber-500 pulse'}`}></div>
+                            {(c.status || 'Aktif').toUpperCase()}
                           </div>
                         </div>
                       </td>
@@ -465,6 +541,23 @@ export default function AdminDashboard() {
                           <button onClick={() => handleEditClick(c)} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-[#00478d] transition-all active:scale-95" title="Edit">
                             <Edit size={18} />
                           </button>
+                          {(c.status || 'Aktif') === 'Aktif' ? (
+                            <button 
+                              onClick={() => handleToggleCustomerStatus(c.id, c.status || 'Aktif')}
+                              className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-error transition-all active:scale-95 group/btn"
+                              title="Nonaktifkan Pelanggan"
+                            >
+                              <Ban size={18} className="group-hover/btn:rotate-12 transition-transform" />
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleToggleCustomerStatus(c.id, c.status || 'Nonaktif')}
+                              className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all active:scale-95 group/btn"
+                              title="Aktifkan Pelanggan"
+                            >
+                              <Check size={18} className="group-hover/btn:scale-125 transition-transform" />
+                            </button>
+                          )}
                           <button onClick={() => handleDeleteCustomer(c.id, c.nama || 'Pelanggan')} className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all active:scale-95" title="Hapus">
                             <Ban size={18} />
                           </button>
@@ -651,16 +744,17 @@ export default function AdminDashboard() {
                                      }`}>
                                         {task.type === 'repair' ? <Wrench size={18} /> : 
                                          task.type === 'reading' ? <TrendingUp size={18} /> : 
-                                         task.type === 'new_connection' ? <Plus size={18} /> : <Scissors size={18} />}
+                                         task.type === 'new_connection' ? <Plus size={18} /> : 
+                                         task.type === 'disconnection' ? <Scissors size={18} /> : <Wrench size={18} />}
                                      </div>
                                      <div>
                                         <p className="font-bold text-slate-800 text-sm">
-                                          {task.type === 'reading' && t('admin.tasks.type.reading')}
-                                          {task.type === 'new_connection' && t('admin.tasks.type.new_connection')}
-                                          {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
-                                          {task.type === 'repair' && `Perbaikan: ${task.reason?.split('-')[0] || ''}`}
+                                          {task.type === 'reading' && 'Pencatatan Meter'}
+                                          {task.type === 'new_connection' && `Sambungan Baru: ${task.customerName || 'Pelanggan Baru'}`}
+                                          {task.type === 'disconnection' && `Pemutusan: ${task.customerName || 'Pelanggan'}`}
+                                          {task.type === 'repair' && `Perbaikan: ${task.customerName || task.title || 'Layanan'}`}
                                         </p>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.location}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.location || 'Lokasi Belum Ditentukan'}</p>
                                      </div>
                                   </div>
                                </td>
@@ -669,32 +763,34 @@ export default function AdminDashboard() {
                                      <span className={`text-[10px] font-bold w-fit px-2 py-0.5 rounded ${
                                         task.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
                                      }`}>
-                                        {t(`admin.tasks.priority.${task.priority}`).toUpperCase()}
+                                        {task.priority === 'high' ? 'PRIORITAS TINGGI' : 'PRIORITAS NORMAL'}
                                      </span>
-                                     <p className="text-xs text-slate-500 font-medium italic truncate max-w-[200px]">{task.reason || t('admin.tasks.routine')}</p>
+                                     <p className="text-xs text-slate-500 font-medium italic truncate max-w-[200px]">{task.reason || task.title || 'Pemeliharaan Rutin'}</p>
                                   </div>
                                </td>
-                               <td className="px-8 py-5">
-                                  {task.assignedTo ? (
-                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">
-                                           {allUsers.find(u => u.id === task.assignedTo)?.name.substring(0, 1)}
-                                        </div>
-                                        <span className="text-xs font-bold text-slate-700">{allUsers.find(u => u.id === task.assignedTo)?.name || t('admin.tasks.unknown_staff')}</span>
-                                     </div>
-                                  ) : (
-                                     <span className="text-xs text-amber-600 font-bold flex items-center gap-1">
-                                        <Clock size={14} /> {t('admin.tasks.unassigned_tag')}
-                                     </span>
-                                  )}
-                               </td>
+                                <td className="px-8 py-5">
+                                   {task.assignedTo ? (
+                                      <div className="flex items-center gap-2">
+                                         <div className="w-8 h-8 rounded-full bg-[#00478d]/10 text-[#00478d] flex items-center justify-center text-xs font-bold border border-[#00478d]/20">
+                                            {allUsers.find(u => u.id === task.assignedTo)?.name.substring(0, 1).toUpperCase() || 'S'}
+                                         </div>
+                                         <span className="text-xs font-bold text-slate-700">{allUsers.find(u => u.id === task.assignedTo)?.name || 'Staff Terpilih'}</span>
+                                      </div>
+                                   ) : (
+                                      <span className="text-xs text-amber-600 font-bold flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
+                                         <Clock size={14} /> Belum Ditugaskan
+                                      </span>
+                                   )}
+                                </td>
                                <td className="px-8 py-5">
                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                      task.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
                                      task.status === 'in-progress' ? 'bg-[#00478d]/10 text-[#00478d]' :
                                      task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                                   }`}>
-                                     {task.status === 'in-progress' ? 'DIPROSES STAFF' : t(`admin.tasks.status.${task.status}`).toUpperCase()}
+                                     {task.status === 'completed' ? 'SELESAI VERIFIKASI' : 
+                                      task.status === 'in-progress' ? 'DIPROSES STAFF' :
+                                      task.status === 'assigned' ? 'TELAH DITUGASKAN' : 'MENUNGGU STAFF'}
                                   </span>
                                </td>
                                <td className="px-8 py-5 text-right">
@@ -1352,6 +1448,269 @@ export default function AdminDashboard() {
                              <option value="high">Tinggi (High)</option>
                           </select>
                        </div>
+                    </div>
+
+                    {/* SEARCHABLE CUSTOMER/REQUEST SELECTION */}
+                    <div className="space-y-4">
+                      {newTaskForm.type !== 'new_connection' ? (
+                        <div className="space-y-1.5 relative">
+                          <label className="text-xs font-bold text-slate-500 ml-1">Pilih Pelanggan (Database)</label>
+                          <div className="relative">
+                            <input 
+                              type="text"
+                              placeholder="Cari Nama Pelanggan atau No. Meter..."
+                              value={searchQuery}
+                              onFocus={() => setIsDropdownOpen(true)}
+                              onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setIsDropdownOpen(true);
+                              }}
+                              className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium pr-10"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Search size={18} />
+                            </div>
+                          </div>
+
+                          <AnimatePresence>
+                            {isDropdownOpen && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="absolute z-[60] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden"
+                              >
+                                <div className="max-h-60 overflow-y-auto">
+                                  {customers.filter(c => 
+                                    (c.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                    (c.no_meter || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                  ).length === 0 ? (
+                                    <div className="p-4 text-center text-xs text-slate-400 italic">Pelanggan tidak ditemukan</div>
+                                  ) : (
+                                    customers.filter(c => 
+                                      (c.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      (c.no_meter || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                    ).map(c => (
+                                      <button
+                                        key={c.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setNewTaskForm({
+                                            ...newTaskForm,
+                                            customerId: c.id,
+                                            customerName: c.nama,
+                                            location: c.alamat || '',
+                                            district: 'Seruyan'
+                                          });
+                                          setSearchQuery(c.nama);
+                                          setIsDropdownOpen(false);
+                                        }}
+                                        className="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors"
+                                      >
+                                        <div>
+                                          <p className="text-sm font-bold text-slate-700">{c.nama}</p>
+                                          <p className="text-[10px] text-slate-400 font-medium">{c.alamat || 'No Address'}</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-[10px] font-bold text-[#00478d]">METER: {c.no_meter || '-'}</p>
+                                          <p className="text-[9px] text-slate-400 uppercase font-bold">{c.status || 'Aktif'}</p>
+                                        </div>
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="space-y-1.5 relative">
+                            <label className="text-xs font-bold text-slate-500 ml-1">Hubungkan dengan Permohonan Baru (Opsional)</label>
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                placeholder="Cari Nama Pemohon atau Alamat..."
+                                value={searchQuery}
+                                onFocus={() => setIsDropdownOpen(true)}
+                                onChange={(e) => {
+                                  setSearchQuery(e.target.value);
+                                  setIsDropdownOpen(true);
+                                }}
+                                className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium pr-10"
+                              />
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Search size={18} />
+                              </div>
+                            </div>
+
+                            <AnimatePresence>
+                              {isDropdownOpen && (
+                                <motion.div 
+                                  initial={{ opacity: 0, y: -10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  className="absolute z-[60] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden"
+                                >
+                                  <div className="max-h-60 overflow-y-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setNewTaskForm({ ...newTaskForm, permohonanId: '', customerName: '', location: '' });
+                                        setSearchQuery('');
+                                        setIsDropdownOpen(false);
+                                      }}
+                                      className="w-full px-5 py-3 text-left hover:bg-slate-50 text-xs font-bold text-slate-400 border-b border-slate-50"
+                                    >
+                                      -- Tanpa Hubungkan Permohonan (Input Manual) --
+                                    </button>
+                                    {requests.filter(req => (req.status === 'approved' || req.status === 'pending') && (
+                                      req.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      req.address.toLowerCase().includes(searchQuery.toLowerCase())
+                                    )).length === 0 ? (
+                                      <div className="p-4 text-center text-xs text-slate-400 italic">
+                                        {requests.length === 0 ? "Belum ada data permohonan di database" : "Permohonan tidak ditemukan"}
+                                      </div>
+                                    ) : (
+                                      requests.filter(req => (req.status === 'approved' || req.status === 'pending') && (
+                                        req.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                        req.address.toLowerCase().includes(searchQuery.toLowerCase())
+                                      )).map(req => (
+                                        <button
+                                          key={req.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setNewTaskForm({
+                                              ...newTaskForm,
+                                              permohonanId: req.id,
+                                              customerName: req.name,
+                                              location: req.address,
+                                              district: 'Seruyan'
+                                            });
+                                            setSearchQuery(req.name);
+                                            setIsDropdownOpen(false);
+                                          }}
+                                          className="w-full px-5 py-3 text-left hover:bg-slate-50 flex flex-col gap-1 border-b border-slate-50 last:border-0 transition-colors"
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <p className="text-sm font-bold text-slate-700">{req.name}</p>
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${req.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                              {req.status.toUpperCase()}
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-slate-500 font-medium">{req.address}</p>
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+
+                          {!newTaskForm.permohonanId && (
+                            <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                               <div className="space-y-1.5 relative">
+                                  <label className="text-xs font-bold text-slate-500 ml-1">Pilih Pelanggan Terdaftar (Tanpa Meter)</label>
+                                  <div className="relative">
+                                    <input 
+                                      type="text" 
+                                      value={newTaskForm.customerName}
+                                      onFocus={() => setIsDropdownOpen(true)}
+                                      onChange={e => {
+                                        setNewTaskForm({...newTaskForm, customerName: e.target.value});
+                                        setSearchQuery(e.target.value);
+                                        setIsDropdownOpen(true);
+                                      }}
+                                      placeholder="Cari nama atau ketik nama baru..."
+                                      className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium pr-10"
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                      <Users size={18} />
+                                    </div>
+                                  </div>
+
+                                  <AnimatePresence>
+                                    {isDropdownOpen && (
+                                      <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-[60] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden"
+                                      >
+                                        <div className="max-h-48 overflow-y-auto">
+                                          {customers
+                                            .filter(c => (!c.no_meter || c.no_meter === '') && (c.nama || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
+                                            .length === 0 ? (
+                                              <div className="p-4 text-center text-xs text-slate-400 italic">Tidak ada pelanggan tanpa meter ditemukan</div>
+                                            ) : (
+                                              customers
+                                                .filter(c => (!c.no_meter || c.no_meter === '') && (c.nama || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
+                                                .map(c => (
+                                                  <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setNewTaskForm({
+                                                        ...newTaskForm,
+                                                        customerId: c.id,
+                                                        customerName: c.nama,
+                                                        customerPhone: c.noHp || '',
+                                                        location: c.alamat || '',
+                                                        district: 'Seruyan'
+                                                      });
+                                                      setSearchQuery(c.nama);
+                                                      setIsDropdownOpen(false);
+                                                    }}
+                                                    className="w-full px-5 py-3 text-left hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
+                                                  >
+                                                    <p className="text-sm font-bold text-slate-700">{c.nama}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium">{c.noHp || 'Tanpa No. HP'} • {c.alamat || 'Tanpa Alamat'}</p>
+                                                  </button>
+                                                ))
+                                            )
+                                          }
+                                          {searchQuery && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setIsDropdownOpen(false)}
+                                              className="w-full px-5 py-3 text-left bg-slate-50 text-[10px] font-bold text-primary uppercase tracking-wider"
+                                            >
+                                              + Gunakan Nama Baru "{searchQuery}"
+                                            </button>
+                                          )}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                               </div>
+
+                               <div className="grid grid-cols-2 gap-6">
+                                 <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 ml-1">Nama Final</label>
+                                    <input 
+                                      type="text" 
+                                      readOnly
+                                      value={newTaskForm.customerName}
+                                      className="w-full px-5 py-3.5 bg-slate-100/50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700"
+                                    />
+                                 </div>
+                                 <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 ml-1">Nomor HP Pelanggan</label>
+                                    <input 
+                                      type="tel" 
+                                      required
+                                      value={newTaskForm.customerPhone}
+                                      onChange={e => setNewTaskForm({...newTaskForm, customerPhone: e.target.value})}
+                                      placeholder="0812..."
+                                      className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
+                                    />
+                                 </div>
+                               </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">

@@ -78,12 +78,26 @@ export default function StaffDashboard() {
     const confirmComplete = window.confirm('Apakah Anda yakin sudah menyelesaikan pekerjaan ini sepenuhnya?');
     if (confirmComplete) {
       try {
-        // Update status perintah kerja jadi selesai
-        const taskRef = doc(db, 'tasks', task.id);
-        await updateDoc(taskRef, {
+        let updates: any = {
           status: 'completed',
           completedAt: new Date().toISOString()
-        });
+        };
+
+        // Jika pemasangan baru, minta nomor meter
+        if (task.type === 'new_connection') {
+          const noMeter = window.prompt("Masukkan Nomor Meter yang terpasang:");
+          if (noMeter === null) return; // Batal
+          
+          if (!noMeter.trim()) {
+            alert("Nomor Meter wajib diisi untuk menyelesaikan pemasangan baru!");
+            return;
+          }
+          updates.meterNumber = noMeter.trim();
+        }
+
+        // Update status perintah kerja jadi selesai
+        const taskRef = doc(db, 'tasks', task.id);
+        await updateDoc(taskRef, updates);
         
         // Update status pengaduan jadi selesai (jika tugas ini berasal dari pengaduan)
         if (task.pengaduanId) {
@@ -91,6 +105,23 @@ export default function StaffDashboard() {
           await updateDoc(pengaduanRef, {
             status: 'Selesai'
           });
+        }
+
+        // Update status permohonan jadi selesai (jika tugas ini berasal dari permohonan baru)
+        if (task.permohonanId) {
+          const permohonanRef = doc(db, 'tb_permohonan', task.permohonanId);
+          await updateDoc(permohonanRef, {
+            status: 'Selesai',
+            no_meter: updates.meterNumber || ''
+          });
+
+          // Update tb_pelanggan (sinkronisasi data pelanggan baru)
+          if (task.permohonanId) {
+            await updateDoc(doc(db, 'tb_pelanggan', task.permohonanId), {
+              no_meter: updates.meterNumber || '',
+              id_pelanggan: `PLG-${updates.meterNumber || task.permohonanId.substring(0,5)}`,
+            });
+          }
         }
         
         alert('Kerja bagus! Tugas berhasil diselesaikan.');
