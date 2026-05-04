@@ -21,7 +21,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../authContext';
 import { useTasks } from '../../taskContext';
 import { useLanguage } from '../../languageContext';
-import { User } from '../../types';
+import { User, MeterReading as MeterReadingType } from '../../types';
+import { processMeterReadingAndBilling } from '../../lib/billingUtils';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 export default function MeterReading() {
   const { allUsers, user: staff, logout } = useAuth();
@@ -38,6 +41,8 @@ export default function MeterReading() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
+  const [standAwal, setStandAwal] = useState<number>(0);
+  const [loadingAwal, setLoadingAwal] = useState(false);
 
   // If taskId exists, auto-select customer from task
   const assignedTask = useMemo(() => tasks.find(t => t.id === taskId), [tasks, taskId]);
@@ -53,21 +58,65 @@ export default function MeterReading() {
     [], 
   [allUsers, searchTerm]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchStandAwal = async () => {
+      if (!activeCustomer) return;
+      setLoadingAwal(true);
+      try {
+        const meterQ = query(
+          collection(db, 'tb_meterpelanggan'), 
+          where('customerId', '==', activeCustomer.id),
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        );
+        const snap = await getDocs(meterQ);
+        if (!snap.empty) {
+          const lastMeter = snap.docs[0].data() as MeterReadingType;
+          setStandAwal(lastMeter.standAkhir);
+        } else {
+          setStandAwal(0);
+        }
+      } catch (err) {
+        console.error("Failed to fetch stand awal:", err);
+      } finally {
+        setLoadingAwal(false);
+      }
+    };
+    fetchStandAwal();
+  }, [activeCustomer]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeCustomer || !readingValue) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    
+    try {
+      const standAkhirVal = Number(readingValue);
+      const res = await processMeterReadingAndBilling(
+        activeCustomer.id,
+        standAkhirVal,
+        'https://images.unsplash.com/photo-1590231804368-6c8a3074780d?w=400&h=300&fit=crop'
+      );
+      
+      if (!res.success) {
+        alert(res.message);
+        setIsSubmitting(false);
+        return;
+      }
+
       if (assignedTask) {
-        updateTaskStatus(assignedTask.id, 'completed', {
-          notes: `${t('staff.tabs.reading')} ${readingValue} m3`,
+        await updateTaskStatus(assignedTask.id, 'completed', {
+          notes: `${t('staff.tabs.reading')} ${readingValue} m3. Total Tagihan Dibuat.`,
           image: 'https://images.unsplash.com/photo-1590231804368-6c8a3074780d?w=400&h=300&fit=crop'
         });
       }
       setIsSubmitting(false);
       setIsSuccess(true);
-    }, 1500);
+    } catch (err) {
+       alert("Gagal memproses.");
+       setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -188,8 +237,9 @@ export default function MeterReading() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">{t('staff.reading.prev')}</label>
-                      <div className="w-full px-4 py-3 bg-slate-50 rounded-xl text-slate-500 font-mono text-lg">
-                        004,291.50 <span className="text-xs uppercase ml-2 opacity-50 font-sans">m³</span>
+                      <div className="w-full px-4 py-3 bg-slate-50 rounded-xl text-slate-500 font-mono text-lg flex items-center justify-between">
+                        <span>{loadingAwal ? 'Loading...' : standAwal.toFixed(2)}</span>
+                        <span className="text-xs uppercase ml-2 opacity-50 font-sans">m³</span>
                       </div>
                     </div>
                     <div>

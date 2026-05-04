@@ -1,16 +1,44 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { CreditCard, TrendingUp, Download, Filter, ArrowUpRight, CheckCircle2, Clock } from 'lucide-react';
+import { CreditCard, TrendingUp, Download, Filter, ArrowUpRight, CheckCircle2, Clock, Check } from 'lucide-react';
 import { useLanguage } from '../../languageContext';
+import { db } from '../../firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { processPayment } from '../../lib/billingUtils';
 
 export default function Billing() {
   const { t } = useLanguage();
-  const transactions = [
-    { id: 'TX-9921', user: 'Ahmad Sulaiman', amount: 'Rp 128.000', status: 'completed', date: '10:42 AM' },
-    { id: 'TX-9920', user: 'Siti Aminah', amount: 'Rp 45.200', status: 'completed', date: '09:15 AM' },
-    { id: 'TX-9919', user: 'Budi Santoso', amount: 'Rp 210.000', status: 'pending', date: '08:30 AM' },
-    { id: 'TX-9918', user: 'Dewi Lestari', amount: 'Rp 88.500', status: 'completed', date: t('common.yesterday') },
-  ];
+  const [bills, setBills] = React.useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const q = query(collection(db, 'tb_billing'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setBills(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const handleProcessPayment = async (billId: string, customerId: string, amount: number) => {
+    if (window.confirm('Proses pembayaran untuk tagihan ini? (Status akan menjadi Lunas)')) {
+      setIsProcessing(billId);
+      try {
+        const res = await processPayment(billId, customerId, amount);
+        if (!res.success) {
+          alert(res.message);
+        } else {
+          alert('Pembayaran berhasil diproses!');
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan saat memproses pembayaran.');
+      } finally {
+        setIsProcessing(null);
+      }
+    }
+  };
+
+  const totalRevenue = bills.filter(b => b.status === 'paid').reduce((acc, curr) => acc + curr.totalTagihan, 0);
+
 
   return (
     <div className="space-y-8">
@@ -36,7 +64,7 @@ export default function Billing() {
         <div className="flex justify-between items-start">
           <div>
             <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-2">{t('admin.billing.monthly')}</p>
-            <h3 className="text-4xl font-headline font-extrabold">Rp 1.24B</h3>
+            <h3 className="text-4xl font-headline font-extrabold">Rp {totalRevenue.toLocaleString('id-ID')}</h3>
             <p className="text-sm mt-2 flex items-center gap-1">
               <TrendingUp size={16} />
               <span className="font-bold">+12.4%</span> {t('admin.stats.vs_last_month')}
@@ -54,29 +82,45 @@ export default function Billing() {
           <h3 className="font-bold">{t('admin.billing.recent')}</h3>
         </div>
         <div className="divide-y divide-slate-50">
-          {transactions.map((tx, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-xl ${tx.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                  {tx.status === 'completed' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+          {bills.length === 0 ? (
+            <div className="px-8 py-10 text-center text-slate-400 italic">Belum ada data tagihan</div>
+          ) : (
+            bills.map((bill) => (
+              <motion.div 
+                key={bill.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-2 rounded-xl ${bill.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                    {bill.status === 'paid' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{bill.customerName || 'Unknown'}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      {bill.periodeBulan} {bill.periodeTahun} • {new Date(bill.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold">{tx.user}</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{tx.id} • {tx.date}</p>
+                <div className="text-right flex items-center gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-[#00478d]">Rp {bill.totalTagihan.toLocaleString('id-ID')}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{bill.status === 'paid' ? 'LUNAS' : 'BELUM BAYAR'}</p>
+                  </div>
+                  {bill.status !== 'paid' && (
+                    <button 
+                      onClick={() => handleProcessPayment(bill.id, bill.customerId, bill.totalTagihan || bill.amount)}
+                      disabled={isProcessing === bill.id}
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                      {isProcessing === bill.id ? 'Memproses...' : 'Bayar'}
+                    </button>
+                  )}
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-[#00478d]">{tx.amount}</p>
-                <button className="text-[10px] font-bold text-slate-400 hover:text-[#00478d] uppercase tracking-widest">{t('common.details')}</button>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))
+          )}
         </div>
       </section>
     </div>

@@ -11,6 +11,28 @@ export interface User {
   status: 'active' | 'pending' | 'blocked';
   verificationCode?: string; // For Staff validation
   avatar?: string;
+  golonganId?: string; // ID for Tarif Golongan
+}
+
+export interface Golongan {
+  id: string;
+  name: string;
+  biayaAdmin: number;
+  tarif1_10: number;
+  tarif11_20: number;
+  tarif21_up: number;
+}
+
+export interface MeterReading {
+  id: string;
+  customerId: string;
+  month: string; // e.g., '2023-10'
+  year: string;
+  standAwal: number;
+  standAkhir: number;
+  pemakaian: number;
+  fotoUrl?: string;
+  createdAt: string;
 }
 
 export interface Task {
@@ -37,12 +59,18 @@ export interface Task {
 
 export interface Bill {
   id: string;
+  customerId: string;
+  customerName?: string;
+  meterReadingId?: string;
   month: string;
   year: string;
-  amount: number;
   usage: number;
-  paidDate: string;
+  biayaAdmin: number;
+  biayaPemakaian: number;
+  amount: number; // Total amount (biayaAdmin + biayaPemakaian)
+  paidDate?: string;
   status: 'paid' | 'unpaid';
+  createdAt: string;
 }
 
 export interface ConnectionRequest {

@@ -37,12 +37,13 @@ import { useRequests } from '../../requestContext';
 import LanguageToggle from '../../components/LanguageToggle';
 import WaterFlow from './WaterFlow';
 import Billing from './Billing';
+import TarifGolongan from './TarifGolongan';
 import { User, Task, UserRole } from '../../types';
 import { auth, db } from '../../firebase';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
-type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users' | 'requests';
+type AdminView = 'dashboard' | 'waterflow' | 'billing' | 'tasks' | 'users' | 'requests' | 'tarif';
 type UserFilter = 'staff' | 'customer' | 'direktur';
 type TaskTab = 'tasks' | 'complaints';
 
@@ -323,6 +324,7 @@ export default function AdminDashboard() {
   const renderContent = () => {
     if (activeView === 'waterflow') return <WaterFlow />;
     if (activeView === 'billing') return <Billing />;
+    if (activeView === 'tarif') return <TarifGolongan />;
 
     if (activeView === 'requests') {
       return (
@@ -1052,7 +1054,7 @@ export default function AdminDashboard() {
           <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold">{t('common.search')} MANAGEMENT</p>
         </div>
         
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-2 overflow-y-auto hide-scrollbar pb-4">
           <button 
             onClick={() => setActiveView('dashboard')}
             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all group ${
@@ -1126,6 +1128,15 @@ export default function AdminDashboard() {
           >
             <CreditCard size={20} />
             <span className="text-sm">{t('admin.sidebar.billing')}</span>
+          </button>
+          <button 
+            onClick={() => setActiveView('tarif')}
+            className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all ${
+              activeView === 'tarif' ? 'bg-[#00478d] text-white font-bold shadow-xl shadow-primary/20' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <Activity size={20} />
+            <span className="text-sm">Master Tarif</span>
           </button>
         </nav>
         <div className="mt-auto space-y-4">
