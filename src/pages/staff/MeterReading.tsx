@@ -75,14 +75,14 @@ export default function MeterReading() {
       try {
         const meterQ = query(
           collection(db, 'tb_meterpelanggan'),
-          where('customerId', '==', activeCustomer.id),
-          orderBy('createdAt', 'desc'),
-          limit(1)
+          where('customerId', '==', activeCustomer.id)
         );
         const snap = await getDocs(meterQ);
         if (!snap.empty) {
-          const lastMeter = snap.docs[0].data() as MeterReadingType;
-          setStandAwal(lastMeter.standAkhir);
+          const allMeters = snap.docs.map(doc => doc.data() as MeterReadingType);
+          // Sort in JavaScript to avoid Firestore composite index requirement
+          allMeters.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setStandAwal(allMeters[0].standAkhir);
         } else {
           setStandAwal(0);
         }
