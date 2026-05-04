@@ -55,6 +55,7 @@ export interface Task {
     signature?: string;
   };
   pengaduanId?: string; // <--- INI YANG DITAMBAHKAN
+  permohonanId?: string;
 }
 
 export interface Bill {

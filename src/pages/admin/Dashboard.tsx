@@ -120,9 +120,15 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'tb_golongan'), (snapshot) => {
-      setGolonganList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    const unsub = onSnapshot(
+      collection(db, 'tb_golongan'), 
+      (snapshot) => {
+        setGolonganList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      },
+      (error) => {
+        console.error("Error fetching tb_golongan:", error);
+      }
+    );
     return () => unsub();
   }, []);
 

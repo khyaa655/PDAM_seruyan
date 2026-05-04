@@ -66,15 +66,15 @@ export const processMeterReadingAndBilling = async (
     let standAwal = 0;
     const meterQ = query(
       collection(db, 'tb_meterpelanggan'), 
-      where('customerId', '==', customerId),
-      orderBy('createdAt', 'desc'),
-      limit(1)
+      where('customerId', '==', customerId)
     );
     
     const meterSnap = await getDocs(meterQ);
     if (!meterSnap.empty) {
-      const lastMeter = meterSnap.docs[0].data() as MeterReading;
-      standAwal = lastMeter.standAkhir;
+      // Sort in JavaScript to avoid Firestore composite index requirement
+      const allMeters = meterSnap.docs.map(doc => doc.data() as MeterReading);
+      allMeters.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      standAwal = allMeters[0].standAkhir;
     }
 
     // Validasi stand akhir
