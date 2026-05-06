@@ -222,7 +222,7 @@ export default function AdminDashboard() {
       if (newTaskForm.type === 'repair') taskTitle = 'Perbaikan';
       if (newTaskForm.type === 'reading') taskTitle = 'Pencatatan Meter';
       if (newTaskForm.type === 'disconnection') taskTitle = 'Pemutusan';
-      if (newTaskForm.type === 'new_connection') taskTitle = 'Sambungan Baru';
+      if (newTaskForm.type === 'new_connection') taskTitle = 'Penyambungan Baru';
 
       let finalPermohonanId = newTaskForm.permohonanId;
 
@@ -786,7 +786,7 @@ export default function AdminDashboard() {
                               <div>
                                 <p className="font-bold text-slate-800 text-sm">
                                   {task.type === 'reading' && 'Pencatatan Meter'}
-                                  {task.type === 'new_connection' && `Sambungan Baru: ${task.customerName || 'Pelanggan Baru'}`}
+                                  {task.type === 'new_connection' && `Penyambungan Baru: ${task.customerName || 'Pelanggan Baru'}`}
                                   {task.type === 'disconnection' && `Pemutusan: ${task.customerName || 'Pelanggan'}`}
                                   {task.type === 'repair' && `Perbaikan: ${task.customerName || task.title || 'Layanan'}`}
                                 </p>

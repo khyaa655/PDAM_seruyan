@@ -36,13 +36,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         
         return {
           id: doc.id,
+          ...data,
           title: isFromPelanggan ? `Permohonan Baru: ${data.nama || 'Tanpa Nama'}` : data.title,
           type: isFromPelanggan ? 'new_connection' : data.type,
           location: isFromPelanggan ? data.alamat : data.location,
           priority: isFromPelanggan ? 'normal' : data.priority,
           status: (data.status === 'Menunggu Verifikasi' || isFromPelanggan) && !data.assignedTo ? 'pending' : data.status,
           district: isFromPelanggan ? 'Seruyan' : data.district,
-          ...data,
+          customerName: isFromPelanggan ? data.nama : data.customerName,
         };
       }) as Task[];
       

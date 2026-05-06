@@ -25,7 +25,7 @@ import LanguageToggle from '../../components/LanguageToggle';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
-type Tab = 'repair' | 'reading' | 'disconnection';
+type Tab = 'repair' | 'reading' | 'disconnection' | 'new_connection';
 
 export default function StaffDashboard() {
   const { user, logout } = useAuth();
@@ -38,9 +38,10 @@ export default function StaffDashboard() {
   const myTasks = tasks.filter(t => t.assignedTo === user?.id);
   
   const activeTasks = myTasks.filter(t => {
-     if (activeTab === 'repair') return t.type === 'repair';
-     if (activeTab === 'reading') return t.type === 'reading';
-     return t.type === 'disconnection';
+      if (activeTab === 'repair') return t.type === 'repair';
+      if (activeTab === 'reading') return t.type === 'reading';
+      if (activeTab === 'new_connection') return t.type === 'new_connection';
+      return t.type === 'disconnection';
   }).sort((a, b) => {
     // Urutan: in-progress -> assigned/pending -> completed
     const statusOrder: Record<string, number> = {
@@ -59,7 +60,8 @@ export default function StaffDashboard() {
   const stats = {
     readings: myTasks.filter(t => t.type === 'reading' && t.status !== 'completed').length,
     repairs: myTasks.filter(t => t.type === 'repair' && t.status !== 'completed').length,
-    disconnections: myTasks.filter(t => t.type === 'disconnection' && t.status !== 'completed').length
+    disconnections: myTasks.filter(t => t.type === 'disconnection' && t.status !== 'completed').length,
+    newConnections: myTasks.filter(t => t.type === 'new_connection' && t.status !== 'completed').length
   };
 
   // FUNGSI 1: Memulai Pekerjaan
@@ -171,11 +173,16 @@ export default function StaffDashboard() {
           </div>
         </motion.section>
 
-        <section className="grid grid-cols-3 gap-3">
+        <section className="grid grid-cols-2 gap-3">
           <div onClick={() => setActiveTab('reading')} className={`p-4 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === 'reading' ? 'bg-[#00478d]/10 ring-1 ring-#00478d/20' : 'bg-slate-100 hover:bg-slate-200'}`}>
             <Droplets size={20} className="text-[#00478d] mb-2" />
             <span className="text-[9px] font-bold text-slate-500 uppercase">{t('staff.tabs.reading')}</span>
             <span className="text-xl font-headline font-bold text-on-surface">{stats.readings}</span>
+          </div>
+          <div onClick={() => setActiveTab('new_connection')} className={`p-4 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === 'new_connection' ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'bg-slate-100 hover:bg-slate-200'}`}>
+            <ClipboardList size={20} className="text-emerald-500 mb-2" />
+            <span className="text-[9px] font-bold text-slate-500 uppercase">{t('staff.tabs.new_connection')}</span>
+            <span className="text-xl font-headline font-bold text-emerald-600">{stats.newConnections}</span>
           </div>
           <div onClick={() => setActiveTab('repair')} className={`p-4 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === 'repair' ? 'bg-red-50 ring-1 ring-red-200' : 'bg-slate-100 hover:bg-slate-200'}`}>
             <Wrench size={20} className="text-red-500 mb-2" />
@@ -190,15 +197,16 @@ export default function StaffDashboard() {
         </section>
 
         <nav className="flex p-1.5 bg-slate-200/50 rounded-full">
-          {(['repair', 'reading', 'disconnection'] as const).map(tab => (
+          {(['repair', 'reading', 'disconnection', 'new_connection'] as const).map(tab => (
             <button 
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-3 px-2 rounded-full font-bold text-[10px] uppercase tracking-tighter transition-all ${
+              className={`flex-1 py-3 px-1 rounded-full font-bold text-[9px] uppercase tracking-tighter transition-all ${
                 activeTab === tab ? 'bg-white shadow-sm text-[#00478d]' : 'text-slate-500 hover:bg-white/50'
               }`}
             >
-              {tab === 'disconnection' ? t('staff.tabs.disconnection') : t(`staff.tabs.${tab}`)}
+              {tab === 'disconnection' ? t('staff.tabs.disconnection') : 
+               tab === 'new_connection' ? t('staff.tabs.new_connection') : t(`staff.tabs.${tab}`)}
             </button>
           ))}
         </nav>
@@ -206,7 +214,7 @@ export default function StaffDashboard() {
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-headline font-bold">
-              Antrean {activeTab === 'repair' ? 'Perbaikan' : activeTab === 'reading' ? 'Pencatatan' : 'Pemutusan'}
+              Antrean {activeTab === 'repair' ? 'Perbaikan' : activeTab === 'reading' ? 'Pencatatan' : activeTab === 'new_connection' ? 'Sambungan Baru' : 'Pemutusan'}
             </h3>
             <span className="text-xs font-bold text-slate-400">{activeTasks.length} {t('staff.tasks.work_orders')}</span>
           </div>
@@ -253,6 +261,7 @@ export default function StaffDashboard() {
                     <div>
                       <h4 className="text-lg font-headline font-bold">
                         {task.type === 'reading' && t('admin.tasks.type.reading')}
+                        {task.type === 'new_connection' && `Sambungan Baru: ${task.customerName}`}
                         {task.type === 'disconnection' && `${t('admin.tasks.type.disconnection_prefix')} ${task.customerName}`}
                         {task.type === 'repair' && `Perbaikan: ${task.reason?.split('-')[0] || 'Laporan Masuk'}`}
                       </h4>
@@ -311,7 +320,7 @@ export default function StaffDashboard() {
                                 task.type === 'disconnection' ? 'bg-amber-500 shadow-amber-500/20' : 'bg-[#00478d] shadow-#00478d/20'
                              }`}
                            >
-                             Mulai Pekerjaan {task.type === 'disconnection' ? 'Pemutusan' : task.type === 'repair' ? 'Perbaikan' : 'Pencatatan'}
+                             Mulai Pekerjaan {task.type === 'disconnection' ? 'Pemutusan' : task.type === 'repair' ? 'Perbaikan' : task.type === 'new_connection' ? 'Pemasangan' : 'Pencatatan'}
                            </button>
                         )}
                         

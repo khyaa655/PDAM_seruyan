@@ -115,7 +115,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Create a new task automatically untuk Staff
       await createTask({
-        title: `Pemasangan Baru: ${req.name}`, 
+        title: `Penyambungan Baru: ${req.name}`, 
         location: req.address,
         district: 'Seruyan',
         priority: 'normal',
