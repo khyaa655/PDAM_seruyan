@@ -30,8 +30,18 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onSnapshot(collection(db, 'tasks'), (snapshot) => {
       const tasksData = snapshot.docs.map(doc => {
         const data = doc.data();
+        
+        // Normalisasi format data dari aplikasi Pelanggan (PDAM_Pelanggan)
+        const isFromPelanggan = data.type === 'Daftar Baru';
+        
         return {
           id: doc.id,
+          title: isFromPelanggan ? `Permohonan Baru: ${data.nama || 'Tanpa Nama'}` : data.title,
+          type: isFromPelanggan ? 'new_connection' : data.type,
+          location: isFromPelanggan ? data.alamat : data.location,
+          priority: isFromPelanggan ? 'normal' : data.priority,
+          status: (data.status === 'Menunggu Verifikasi' || isFromPelanggan) && !data.assignedTo ? 'pending' : data.status,
+          district: isFromPelanggan ? 'Seruyan' : data.district,
           ...data,
         };
       }) as Task[];
