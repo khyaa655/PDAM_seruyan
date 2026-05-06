@@ -3,6 +3,7 @@ import { ConnectionRequest } from './types';
 import { useTasks } from './taskContext';
 import { db } from './firebase';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy, addDoc, setDoc } from 'firebase/firestore';
+import { useAuth } from './authContext';
 
 interface RequestContextType {
   requests: ConnectionRequest[];
@@ -17,8 +18,15 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
   const [requests, setRequests] = useState<ConnectionRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { createTask } = useTasks();
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) {
+      setRequests([]);
+      setIsLoading(false);
+      return;
+    }
+
     const q = query(collection(db, 'tb_permohonan'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (snapshot.empty) {
@@ -78,7 +86,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const approveRequest = async (id: string, staffId?: string) => {
     try {

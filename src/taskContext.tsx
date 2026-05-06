@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from './firebase'; 
 import { collection, onSnapshot, doc, setDoc, updateDoc, query } from 'firebase/firestore';
 import { Task } from './types';
+import { useAuth } from './authContext';
 
 interface TaskContextType {
   tasks: Task[];
@@ -16,8 +17,15 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) {
+      setTasks([]);
+      setIsLoading(false);
+      return;
+    }
+
     // Listener tanpa orderBy dulu agar tidak nyangkut di masalah Index
     const unsubscribe = onSnapshot(collection(db, 'tasks'), (snapshot) => {
       const tasksData = snapshot.docs.map(doc => {
@@ -37,21 +45,28 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const createTask = async (taskData: any) => {
     try {
       const newId = `TSK-${Date.now()}`;
+      
+      // Hapus semua field yang bernilai undefined (Firebase menolak undefined)
+      const cleanTaskData = Object.fromEntries(
+        Object.entries(taskData).filter(([_, v]) => v !== undefined)
+      );
+
       const newTask = {
         id: newId,
         createdAt: new Date().toISOString(),
-        status: taskData.assignedTo ? 'assigned' : 'pending',
-        assignedTo: taskData.assignedTo || null,
-        ...taskData
+        status: cleanTaskData.assignedTo ? 'assigned' : 'pending',
+        assignedTo: cleanTaskData.assignedTo || null,
+        ...cleanTaskData
       };
       await setDoc(doc(db, 'tasks', newId), newTask);
     } catch (error) {
       console.error("Gagal buat tugas:", error);
+      throw error;
     }
   };
 
