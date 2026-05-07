@@ -1,25 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   signInWithPopup,
   sendPasswordResetEmail,
   confirmPasswordReset,
-  User as FirebaseUser 
+  getAuth,
+  User as FirebaseUser
 } from 'firebase/auth';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  collection, 
-  onSnapshot, 
+import { initializeApp, deleteApp } from 'firebase/app';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  onSnapshot,
   updateDoc,
   query,
   where
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, firebaseConfig } from './firebase';
 import { User, UserRole } from './types';
 
 interface AuthContextType {
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch additional profile data from Firestore
         const userDocRef = doc(db, 'user', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data() as User;
           if (userData.status === 'active') {
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const userData = userDoc.data() as User;
-      
+
       if (userData.status === 'pending') {
         await signOut(auth);
         return { success: false, message: 'PENDING_VERIFICATION' };
@@ -137,14 +139,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, phone: string, address: string, password: string, role: UserRole) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Menggunakan instansi aplikasi sekunder agar tidak melogout admin yang sedang login
+      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp" + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       const firebaseUser = userCredential.user;
 
       const isStaff = role === 'staff';
       const status = isStaff ? 'pending' : 'active';
-      
-      const verificationCode = isStaff 
-        ? Math.floor(100000 + Math.random() * 900000).toString() 
+
+      const verificationCode = isStaff
+        ? Math.floor(100000 + Math.random() * 900000).toString()
         : null; // Firebase does not allow undefined, use null instead
 
       const newUser: any = {
@@ -165,9 +171,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await setDoc(doc(db, 'user', firebaseUser.uid), newUser as User);
 
-      if (status === 'pending') {
-        await signOut(auth);
-      }
+      // Membersihkan instansi aplikasi sekunder
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
 
       return { success: true, status: status as 'active' | 'pending' };
     } catch (error: any) {
@@ -185,15 +191,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const q = query(collection(db, 'user'), where('email', '==', emailOrPhone));
       // Note: In a real app, you'd also check phone.
-      
+
       // We'll use a simplified approach since this is a refactor:
       // In a real Firebase app, you usually don't use "verification codes" like this 
       // unless you're doing custom email links or SMS.
       // But for this project, we'll keep the logic: find user, check code, update status.
-      
+
       // I'll fetch the user, update their status to active, then they can login.
       // Or auto-login if they have the password (which they should).
-      
+
       // For now, let's just update the status in Firestore.
       return { success: false, message: 'Verification logic requires manual admin approval or SMS service integration' };
     } catch (error) {
@@ -241,17 +247,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      allUsers, 
-      login, 
-      register, 
-      verifyCode, 
-      logout, 
-      updateUserStatus, 
+    <AuthContext.Provider value={{
+      user,
+      allUsers,
+      login,
+      register,
+      verifyCode,
+      logout,
+      updateUserStatus,
       sendPasswordReset,
       confirmNewPassword,
-      isLoading 
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>
